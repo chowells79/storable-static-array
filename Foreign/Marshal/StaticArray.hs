@@ -45,10 +45,9 @@ import GHC.TypeLits
 
 import Control.Monad
 
-import Data.Array.IArray
-import Data.Array.Unboxed    (UArray)
+import Data.Array.Base
+import Data.Array            (Array)
 import Data.Array.IO  hiding (unsafeFreeze)
-import Data.Array.Unsafe     (unsafeFreeze)
 import Data.Functor          ((<$>))
 import Data.Proxy            (Proxy(..))
 
@@ -122,9 +121,9 @@ instance (StaticSize d, Ix (Bound d), Storable e, IArray b e,
             m <- newArray_ b :: IO ((Mutable b) (Bound d) e)
 
             let src = castPtr src'
-            forM_ (zip [0..] $ range b) $ \(o, i) -> do
-                x <- peek $ advancePtr src o
-                writeArray m i x
+            forM_ [0 .. rangeSize b - 1] $ \i -> do
+                x <- peek $ advancePtr src i
+                unsafeWrite m i x
 
             arr <- StaticArray <$> unsafeFreeze m
         return arr
@@ -133,8 +132,8 @@ instance (StaticSize d, Ix (Bound d), Storable e, IArray b e,
         let a = toArray arr
             b = bounds a
             dst = castPtr dst'
-        forM_ (zip [0..] $ range b) $ \(o, i) ->
-            poke (advancePtr dst o) $ a ! i
+        forM_ [0 .. rangeSize b - 1] $ \i ->
+            poke (advancePtr dst i) $ unsafeAt a i
 
 
 -- | A conversion function for converting type-level naturals to
