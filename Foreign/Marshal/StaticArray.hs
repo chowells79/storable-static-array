@@ -56,6 +56,9 @@ import Foreign.Ptr           (castPtr)
 -- | A minimal wrapper for 'Array' that encodes the full dimensions of
 -- the array in the type. Intended for interfacing with
 -- (possibly-)multidimensional arrays of fixed size in native code.
+--
+-- The constructor is not exported to prevent creating a StaticArray
+-- with a size that doesn't match its dimensions.
 newtype StaticArray dimensions elements =
     StaticArray {
         -- | Returns the backing 'Array' of this 'StaticArray'.
@@ -70,8 +73,9 @@ newtype StaticArray dimensions elements =
 class StaticSize d where
     -- | The bounding type for this dimension description
     type Bound d :: *
-    -- | The concrete bounds for this dimension. Implementations of
-    -- this function should not examine their argument in any way.
+    -- | The concrete bounds for an array of this
+    -- dimensionality. Implementations of this function should not
+    -- examine their argument in any way.
     extent :: StaticArray d e -> (Bound d, Bound d)
 
 -- | Create a new StaticArray from a list of indices and
