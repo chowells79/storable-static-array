@@ -9,32 +9,31 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-|
 
-This module defines 'FixedStorableArray', a simple wrapper around
-'StorableArray' with its dimensions encoded in the
-type. 'FixedStorableArray' provides a 'Storable' instance that uses
-the type-level dimensions, and significantly eases writing FFI
-bindings to fixed-size native arrays. For example,
-@'FixedStorableArray' 10 CInt@ has a 'Storable' instance that is
-directly compatible with @int foo[10]@ in native code.
+This module defines 'StaticArray', a simple wrapper around
+'StorableArray' with its dimensions encoded in the type. 'StaticArray'
+provides a 'Storable' instance that uses the type-level dimensions,
+and significantly eases writing FFI bindings to fixed-size native
+arrays. For example, @'StaticArray' 10 CInt@ has a 'Storable' instance
+that is directly compatible with @int foo[10]@ in native code.
 
-Multidimensional native arrays are also
-supported. @'FixedStorableArray' \'(10,20,100) CUChar@ is compatible
-with @unsigned char foo[10][20][100]@. Note the leading @\'@ before
-the tuple containing the dimensions. It marks it as a @DataKinds@
-lifted tuple, necessary to store the dimensions.
+Multidimensional native arrays are also supported. @'StaticArray'
+\'(10,20,100) CUChar@ is compatible with @unsigned char
+foo[10][20][100]@. Note the leading @\'@ before the tuple containing
+the dimensions. It marks it as a @DataKinds@ lifted tuple, necessary
+to store the dimensions.
 
-To operate on the contents of a 'FixedStorableArray', use
+To operate on the contents of a 'StaticArray', use
 'toStorableArray'. 'toStorableArray' returns a 'StorableArray' with
 the correct type and index values already in place. For example, the
-result of 'toStorableArray' on a @'FixedStorableArray' \'(10,20,100)
-CUChar@ is a @'StorableArray' (Int, Int, Int) CUChar@ with its bounds
-set to @((0,0,0),(9,19,99))@.
+result of 'toStorableArray' on a @'StaticArray' \'(10,20,100) CUChar@
+is a @'StorableArray' (Int, Int, Int) CUChar@ with its bounds set to
+@((0,0,0),(9,19,99))@.
 
 -}
-module Foreign.Marshal.FixedStorableArray
-       ( FixedStorableArray
-       , newFixedStorableArray
-       , newFixedStorableArray_
+module Foreign.Marshal.StaticArray
+       ( StaticArray
+       , newStaticArray
+       , newStaticArray_
        , toStorableArray
        , HasBounds(..)
        , fromNat
@@ -54,12 +53,12 @@ import Foreign.Ptr           (castPtr)
 -- | A minimal wrapper for 'StorableArray' that encodes the full
 -- dimensions of the array in the type. Intended for interfacing with
 -- (possibly-)multidimensional arrays of fixed size in native code.
-newtype FixedStorableArray dimensions e =
-    FixedStorableArray {
+newtype StaticArray dimensions e =
+    StaticArray {
         -- | Returns the backing 'StorableArray' of this
-        -- 'FixedStorableArray'. The backing array is shared such that
+        -- 'StaticArray'. The backing array is shared such that
         -- modifications to it will be seen across all uses of this
-        -- 'FixedStorableArray'.
+        -- 'StaticArray'.
         toStorableArray :: StorableArray (Bound dimensions) e }
 
 -- | This class connects dimension description types with
@@ -69,34 +68,33 @@ class HasBounds d where
     -- | The bounding type for this dimension description
     type Bound d :: *
     -- | The concrete bounds for this dimension
-    bounds :: FixedStorableArray d e -> (Bound d, Bound d)
+    bounds :: StaticArray d e -> (Bound d, Bound d)
 
--- | Create a 'FixedStorableArray' and populate it with copies of the
--- element passed in. Dimensions will be determined from the return
--- type.
-newFixedStorableArray :: (HasBounds d, Ix (Bound d), Storable e) =>
-                         e -> IO (FixedStorableArray d e)
-newFixedStorableArray x = do
+-- | Create a 'StaticArray' and populate it with copies of the element
+-- passed in. Dimensions will be determined from the return type.
+newStaticArray :: (HasBounds d, Ix (Bound d), Storable e) =>
+                  e -> IO (StaticArray d e)
+newStaticArray x = do
     rec let b = bounds ma
-        ma <- FixedStorableArray <$> newArray b x
+        ma <- StaticArray <$> newArray b x
     return ma
 
--- | Create a 'FixedStorableArray' and don't populate it with anything
--- in particular. Contents may or may not be initialized to anything
--- at all. Dimensions will be determined from the return type.
-newFixedStorableArray_ :: (HasBounds d, Ix (Bound d), Storable e) =>
-                          IO (FixedStorableArray d e)
-newFixedStorableArray_ = do
+-- | Create a 'StaticArray' and don't populate it with anything in
+-- particular. Contents may or may not be initialized to anything at
+-- all. Dimensions will be determined from the return type.
+newStaticArray_ :: (HasBounds d, Ix (Bound d), Storable e) =>
+                   IO (StaticArray d e)
+newStaticArray_ = do
     rec let b = bounds ma
-        ma <- FixedStorableArray <$> newArray_ b
+        ma <- StaticArray <$> newArray_ b
     return ma
 
 instance (HasBounds d, Ix (Bound d), Storable e) =>
-         Storable (FixedStorableArray d e) where
+         Storable (StaticArray d e) where
     sizeOf a = sizeOf (undefined :: e) * rangeSize (bounds a)
     alignment _ = alignment (undefined :: e)
     peek src' = do
-        ma <- newFixedStorableArray_
+        ma <- newStaticArray_
         let sa = toStorableArray ma
             src = castPtr src'
         count <- rangeSize <$> getBounds sa
@@ -312,4 +310,4 @@ instance (SingI n, HasBounds (n2 ': ns)) =>
     type Bound (n ': n2 ': ns) = (Int, Bound (n2 ': ns))
     bounds _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
-        (b0, bn) = bounds (undefined :: FixedStorableArray (n2 ': ns) ())
+        (b0, bn) = bounds (undefined :: StaticArray (n2 ': ns) ())
