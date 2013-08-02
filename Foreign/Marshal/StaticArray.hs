@@ -9,28 +9,31 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-|
 
-This module defines 'StaticArray', a simple wrapper around 'Array'
-with its dimensions encoded in the type. 'StaticArray' provides a
-'Storable' instance that uses the type-level dimensions, and
-significantly eases writing FFI bindings to fixed-size native
-arrays. For example, @'StaticArray' 10 CInt@ has a 'Storable' instance
-that is directly compatible with @int foo[10]@ in native code.
+This module defines 'StaticArray', a simple wrapper around instances
+of 'IArray' with its dimensions encoded in the type. 'StaticArray'
+provides a 'Storable' instance that uses the type-level dimensions,
+and significantly eases writing FFI bindings to fixed-size native
+arrays. For example, @'StaticArray' 'UArray' 10 CInt@ has a 'Storable'
+instance that is directly compatible with @int foo[10]@ in native
+code.
 
 Multidimensional native arrays are also supported. @'StaticArray'
-\'(10,20,100) CUChar@ is compatible with @unsigned char
+'UArray' \'(10,20,100) CUChar@ is compatible with @unsigned char
 foo[10][20][100]@. Note the leading @\'@ before the tuple containing
 the dimensions. It marks it as a @DataKinds@ lifted tuple, necessary
 to store the dimensions.
 
 To operate on the contents of a 'StaticArray', use
-'toArray'. 'toArray' returns a 'Array' with the correct type and index
-values already in place. For example, the result of 'toArray' on a
-@'StaticArray' \'(10,20,100) CUChar@ is a @'Array' (Int, Int, Int)
-CUChar@ with its bounds set to @((0,0,0),(9,19,99))@.
+'toArray'. 'toArray' returns the backing array with the correct type
+and index values already in place. For example, the result of
+'toArray' on a @'StaticArray' 'UArray' \'(10,20,100) CUChar@ is a
+@'UArray' (Int, Int, Int) CUChar@ with its bounds set to
+@((0,0,0),(9,19,99))@.
 
 -}
 module Foreign.Marshal.StaticArray
-       ( StaticArray
+       ( Mutable
+       , StaticArray
        , staticArray
        , listStaticArray
        , toArray
@@ -42,8 +45,9 @@ import GHC.TypeLits
 
 import Control.Monad
 
-import Data.Array
-import Data.Array.IO hiding  (unsafeFreeze)
+import Data.Array.IArray
+import Data.Array.Unboxed    (UArray)
+import Data.Array.IO  hiding (unsafeFreeze)
 import Data.Array.Unsafe     (unsafeFreeze)
 import Data.Functor          ((<$>))
 import Data.Proxy            (Proxy(..))
@@ -53,19 +57,20 @@ import Foreign.Marshal.Array (advancePtr)
 import Foreign.Ptr           (castPtr)
 
 
--- | A minimal wrapper for 'Array' that encodes the full dimensions of
--- the array in the type. Intended for interfacing with
+-- | A minimal wrapper for instances of 'IArray' that encodes the full
+-- dimensions of the array in the type. Intended for interfacing with
 -- (possibly-)multidimensional arrays of fixed size in native code.
 --
 -- The constructor is not exported to prevent creating a StaticArray
 -- with a size that doesn't match its dimensions.
-newtype StaticArray dimensions elements =
+newtype StaticArray backing dimensions elements =
     StaticArray {
         -- | Returns the backing 'Array' of this 'StaticArray'.
-        toArray :: Array (Bound dimensions) elements }
+        toArray :: backing (Bound dimensions) elements
+        }
     deriving (Eq, Show)
 
--- | This class connects dimension description types with 'Array'
+-- | This class connects dimension description types with 'IArray'
 -- index types and values. Instances are provided for up to 13
 -- dimensions as tuples. Additionally, there is support for unlimited
 -- dimensions via a list of dimensions. This results in nested pairs
@@ -76,29 +81,45 @@ class StaticSize d where
     -- | The concrete bounds for an array of this
     -- dimensionality. Implementations of this function should not
     -- examine their argument in any way.
-    extent :: StaticArray d e -> (Bound d, Bound d)
+    extent :: StaticArray b d e -> (Bound d, Bound d)
 
--- | Create a new StaticArray from a list of indices and
+-- | Create a new 'StaticArray' from a list of indices and
 -- elements. This has all the semantic caveats of 'array', except that
 -- the bounds are as good as those provided by the 'StaticSize'
 -- instance.
-staticArray :: (StaticSize d, Ix (Bound d)) =>
-               [(Bound d, e)] -> StaticArray d e
+staticArray :: (Ix (Bound d), IArray b e, StaticSize d) =>
+               [(Bound d, e)] -> StaticArray b d e
 staticArray ls = let a = StaticArray $ array (extent a) ls in a
 
--- | Create a new StaticArray from a list of elements in index
+-- | Create a new 'StaticArray' from a list of elements in index
 -- order. Implemented in terms of 'listArray'.
-listStaticArray :: (StaticSize d, Ix (Bound d)) =>
-                   [e] -> StaticArray d e
+listStaticArray :: (StaticSize d, Ix (Bound d), IArray b e) =>
+                   [e] -> StaticArray b d e
 listStaticArray ls = let a = StaticArray $ listArray (extent a) ls in a
 
-instance (StaticSize d, Ix (Bound d), Storable e) =>
-         Storable (StaticArray d e) where
+
+-- | The 'Mutable' type family is used to associate instances of
+-- 'IArray' with instances of 'MArray' that give non-copying
+-- 'unsafeFreeze'. This is used to increase the efficiency of 'peek'
+-- in 'StaticArray' 's 'Storable' instance.
+--
+-- If you're somehow using an instance of 'IArray' other than 'Array'
+-- or 'UArray', you'll need to add a type instance for your type. If
+-- it supports non-copying 'unsafeFreeze', the type instance should
+-- return the type constructor for the appropriate 'MArray'
+-- instance. Otherwise, just have it return 'IOArray'
+type family Mutable (a :: * -> * -> *) :: * -> * -> *
+type instance Mutable Array = IOArray
+type instance Mutable UArray = IOUArray
+
+instance (StaticSize d, Ix (Bound d), Storable e, IArray b e,
+          MArray (Mutable b) e IO) =>
+         Storable (StaticArray b d e) where
     sizeOf a = sizeOf (undefined :: e) * rangeSize (extent a)
     alignment _ = alignment (undefined :: e)
     peek src' = do
         rec let b = extent arr
-            m <- newArray_ b :: IO (IOArray (Bound d) e)
+            m <- newArray_ b :: IO ((Mutable b) (Bound d) e)
 
             let src = castPtr src'
             forM_ (zip [0..] $ range b) $ \(o, i) -> do
@@ -128,7 +149,6 @@ instance (StaticSize d, Ix (Bound d), Storable e) =>
 -- dictionary passing and type erasure.
 fromNat :: forall (proxy :: Nat -> *) (n :: Nat). SingI n => proxy n -> Int
 fromNat _ = fromInteger $ fromSing (sing :: Sing n)
-
 
 ----------------------------------------------------------------------------
 -- StaticSize instances. More can be written, trivially - it's just a matter
@@ -319,4 +339,4 @@ instance (SingI n, StaticSize (n2 ': ns)) =>
     type Bound (n ': n2 ': ns) = (Int, Bound (n2 ': ns))
     extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
-        (b0, bn) = extent (undefined :: StaticArray (n2 ': ns) ())
+        (b0, bn) = extent (undefined :: StaticArray a (n2 ': ns) ())
