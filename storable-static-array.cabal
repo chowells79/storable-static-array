@@ -17,7 +17,7 @@ cabal-version:       >=1.8
 
 source-repository head
   type:              git
-  location:          https://github.com/chowells79/fixed-storable-array.git
+  location:          https://github.com/chowells79/storable-static-array.git
 
 library
   exposed-modules:   Foreign.Marshal.StaticArray
