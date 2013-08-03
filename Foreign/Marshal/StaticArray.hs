@@ -70,7 +70,10 @@ newtype StaticArray backing dimensions elements =
         -- | Returns the backing 'Array' of this 'StaticArray'.
         toArray :: backing (Bound dimensions) elements
         }
-    deriving (Eq, Show)
+    deriving Eq
+
+instance (IArray b e, Ix (Bound d), Show e) => Show (StaticArray b d e) where
+    show = ("listStaticArray " ++) . show . elems . toArray
 
 -- | This class connects dimension description types with 'IArray'
 -- index types and values.
