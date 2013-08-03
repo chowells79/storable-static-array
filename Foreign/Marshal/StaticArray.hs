@@ -7,6 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE EmptyDataDecls #-}
 {-|
 
 This module defines 'StaticArray', a simple wrapper around instances
@@ -39,6 +40,8 @@ module Foreign.Marshal.StaticArray
        , toArray
        , StaticSize(..)
        , fromNat
+       , (:.)
+       , Nil
        ) where
 
 import GHC.TypeLits
@@ -70,10 +73,7 @@ newtype StaticArray backing dimensions elements =
     deriving (Eq, Show)
 
 -- | This class connects dimension description types with 'IArray'
--- index types and values. Instances are provided for up to 13
--- dimensions as tuples. Additionally, there is support for unlimited
--- dimensions via a list of dimensions. This results in nested pairs
--- for the index type.
+-- index types and values.
 class StaticSize d where
     -- | The bounding type for this dimension description
     type Bound d :: *
@@ -153,6 +153,46 @@ fromNat _ = fromInteger $ fromSing (sing :: Sing n)
 -- StaticSize instances. More can be written, trivially - it's just a matter
 -- of whether they'll ever actually be used.
 
+instance SingI n => StaticSize ('[n] :: [Nat]) where
+    type Bound ('[n]) = Int
+    extent _ = (0, fromNat (Proxy :: Proxy n) - 1)
+
+instance (SingI n, StaticSize (n2 ': ns)) =>
+          StaticSize ((n ': n2 ': ns) :: [Nat]) where
+    type Bound (n ': n2 ': ns) = (Int, Bound (n2 ': ns))
+    extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
+      where
+        (b0, bn) = extent (undefined :: StaticArray a (n2 ': ns) b)
+
+-- | ':.' is provided as a second means of constructing a type-level
+-- list of dimensions. @DataKinds@-lifted lists are also supported and
+-- easier to use in almost all cases. The exception is when @CPP@ is
+-- involved, when a single @'@ on a line causes @CPP@ to fail.
+--
+-- With @TypeOperators@ and @DataKinds@ enabled, @'StaticArray'
+-- 'UArray' (2:.10:.25:.'Nil') 'Int'@ is equivalent to @'StaticArray'
+-- 'UArray' \'[2,10,25] 'Int'@ and both wrap a @'UArray'
+-- ('Int',('Int','Int')) 'Int'@ with bounds @((0,(0,0)),(1,(9,24)))@.
+--
+-- Neither lifted lists nor this approach support creating
+-- 0-dimensional arrays, because they make no sense with 'Storable'.
+data a :. b
+
+-- | 'Nil' is the terminator for type-level lists created with ':.'
+data Nil
+
+infixr 3 :.
+
+instance SingI n => StaticSize ((n :: Nat) :. Nil) where
+    type Bound (n :. Nil) = Int
+    extent _ = (0, fromNat (Proxy :: Proxy n) - 1)
+
+instance (SingI n, StaticSize (n2 :. ns)) =>
+          StaticSize ((n :: Nat) :. n2 :. ns) where
+    type Bound (n :. n2 :. ns) = (Int, Bound (n2 :. ns))
+    extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
+      where
+        (b0, bn) = extent (undefined :: StaticArray a (n2 :. ns) b)
 instance SingI a => StaticSize (a :: Nat) where
     type Bound a = Int
     extent _ = (0, fromNat (Proxy :: Proxy a) - 1)
@@ -329,13 +369,3 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                  fromNat (Proxy :: Proxy l) - 1,
                  fromNat (Proxy :: Proxy m) - 1))
 
-instance SingI n => StaticSize ('[n] :: [Nat]) where
-    type Bound ('[n]) = Int
-    extent _ = (0, fromNat (Proxy :: Proxy n) - 1)
-
-instance (SingI n, StaticSize (n2 ': ns)) =>
-          StaticSize ((n ': n2 ': ns) :: [Nat]) where
-    type Bound (n ': n2 ': ns) = (Int, Bound (n2 ': ns))
-    extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
-      where
-        (b0, bn) = extent (undefined :: StaticArray a (n2 ': ns) ())
