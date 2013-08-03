@@ -33,11 +33,11 @@ and index values already in place. For example, the result of
 
 -}
 module Foreign.Marshal.StaticArray
-       ( Mutable
-       , StaticArray
+       ( StaticArray
+       , Mutable
+       , toArray
        , staticArray
        , listStaticArray
-       , toArray
        , StaticSize(..)
        , fromNat
        , (:.)
@@ -105,9 +105,9 @@ listStaticArray ls = let a = StaticArray $ listArray (extent a) ls in a
 -- 'unsafeFreeze'. This is used to increase the efficiency of 'peek'
 -- in 'StaticArray' 's 'Storable' instance.
 --
--- If you're somehow using an instance of 'IArray' other than 'Array'
--- or 'UArray', you'll need to add a type instance for your type. If
--- it supports non-copying 'unsafeFreeze', the type instance should
+-- If you're using an instance of 'IArray' other than 'Array' or
+-- 'UArray', you'll need to add a type instance for your type. If it
+-- supports non-copying 'unsafeFreeze', the type instance should
 -- return the type constructor for the appropriate 'MArray'
 -- instance. Otherwise, just have it return 'IOArray'
 type family Mutable (a :: * -> * -> *) :: * -> * -> *
