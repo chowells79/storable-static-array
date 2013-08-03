@@ -65,7 +65,7 @@ import Foreign.Ptr           (castPtr)
 --
 -- The constructor is not exported to prevent creating a StaticArray
 -- with a size that doesn't match its dimensions.
-newtype StaticArray backing dimensions elements =
+newtype StaticArray backing dimensions (elements :: *) =
     StaticArray {
         -- | Returns the backing 'Array' of this 'StaticArray'.
         toArray :: backing (Bound dimensions) elements
