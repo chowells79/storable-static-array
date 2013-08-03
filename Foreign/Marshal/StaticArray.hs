@@ -193,6 +193,7 @@ instance (SingI n, StaticSize (n2 :. ns)) =>
     extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
         (b0, bn) = extent (undefined :: StaticArray a (n2 :. ns) b)
+
 instance SingI a => StaticSize (a :: Nat) where
     type Bound a = Int
     extent _ = (0, fromNat (Proxy :: Proxy a) - 1)
@@ -368,4 +369,3 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                  fromNat (Proxy :: Proxy k) - 1,
                  fromNat (Proxy :: Proxy l) - 1,
                  fromNat (Proxy :: Proxy m) - 1))
-
