@@ -54,11 +54,10 @@ import Foreign.Marshal.StaticArray
 -- 0-dimensional arrays, because they make no sense with
 -- 'Foreign.Storable.Storable'.
 data a :. b
+infixr 3 :.
 
 -- | 'Nil' is the terminator for type-level lists created with ':.'
 data Nil
-
-infixr 3 :.
 
 instance SingI n => StaticSize ((n :: Nat) :. Nil) where
     type Bound (n :. Nil) = Int
