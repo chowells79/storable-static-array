@@ -20,6 +20,7 @@ source-repository head
   location:          https://github.com/chowells79/storable-static-array.git
 
 library
-  exposed-modules:   Foreign.Marshal.StaticArray
+  exposed-modules:   Foreign.Marshal.StaticArray,
+                     Foreign.Marshal.StaticArray.Unpromoted
   build-depends:     base ==4.6.*, array ==0.4.*, tagged ==0.6.*
   ghc-options:       -Wall

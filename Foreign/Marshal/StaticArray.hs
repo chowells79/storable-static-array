@@ -1,13 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE EmptyDataDecls #-}
 {-|
 
 This module defines 'StaticArray', a simple wrapper around instances
@@ -21,7 +20,7 @@ code.
 Multidimensional native arrays are also supported. @'StaticArray'
 'UArray' \'(10,20,100) CUChar@ is compatible with @unsigned char
 foo[10][20][100]@. Note the leading @\'@ before the tuple containing
-the dimensions. It marks it as a @DataKinds@ lifted tuple, necessary
+the dimensions. It marks it as a @DataKinds@ promoted tuple, necessary
 to store the dimensions.
 
 To operate on the contents of a 'StaticArray', use
@@ -40,8 +39,6 @@ module Foreign.Marshal.StaticArray
        , listStaticArray
        , StaticSize(..)
        , fromNat
-       , (:.)
-       , Nil
        ) where
 
 import GHC.TypeLits
@@ -77,6 +74,11 @@ instance (IArray b e, Ix (Bound d), Show e) => Show (StaticArray b d e) where
 
 -- | This class connects dimension description types with 'IArray'
 -- index types and values.
+--
+-- This module contains instances for types of kind 'Nat', types of
+-- the promoted kind \'['Nat'], and promoted tuples of 'Nat' values up
+-- to 13 elements. For instances not relying on promoted data types,
+-- see the "Foreign.Marshal.StaticArray.Unpromoted" module.
 class StaticSize d where
     -- | The bounding type for this dimension description
     type Bound d :: *
@@ -152,10 +154,6 @@ instance (StaticSize d, Ix (Bound d), Storable e, IArray b e,
 fromNat :: forall (proxy :: Nat -> *) (n :: Nat). SingI n => proxy n -> Int
 fromNat _ = fromInteger $ fromSing (sing :: Sing n)
 
-----------------------------------------------------------------------------
--- StaticSize instances. More can be written, trivially - it's just a matter
--- of whether they'll ever actually be used.
-
 instance SingI n => StaticSize ('[n] :: [Nat]) where
     type Bound ('[n]) = Int
     extent _ = (0, fromNat (Proxy :: Proxy n) - 1)
@@ -166,36 +164,6 @@ instance (SingI n, StaticSize (n2 ': ns)) =>
     extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
         (b0, bn) = extent (undefined :: StaticArray a (n2 ': ns) b)
-
--- | ':.' is provided as a second means of constructing a type-level
--- list of dimensions. @DataKinds@-lifted lists are also supported and
--- easier to use in almost all cases. The exception is when @CPP@ is
--- involved, when a single @'@ on a line causes @CPP@ to fail.
---
--- With @TypeOperators@ and @DataKinds@ enabled, @'StaticArray'
--- 'UArray' (2:.10:.25:.'Nil') 'Int'@ is equivalent to @'StaticArray'
--- 'UArray' \'[2,10,25] 'Int'@ and both wrap a @'UArray'
--- ('Int',('Int','Int')) 'Int'@ with bounds @((0,(0,0)),(1,(9,24)))@.
---
--- Neither lifted lists nor this approach support creating
--- 0-dimensional arrays, because they make no sense with 'Storable'.
-data a :. b
-
--- | 'Nil' is the terminator for type-level lists created with ':.'
-data Nil
-
-infixr 3 :.
-
-instance SingI n => StaticSize ((n :: Nat) :. Nil) where
-    type Bound (n :. Nil) = Int
-    extent _ = (0, fromNat (Proxy :: Proxy n) - 1)
-
-instance (SingI n, StaticSize (n2 :. ns)) =>
-          StaticSize ((n :: Nat) :. n2 :. ns) where
-    type Bound (n :. n2 :. ns) = (Int, Bound (n2 :. ns))
-    extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
-      where
-        (b0, bn) = extent (undefined :: StaticArray a (n2 :. ns) b)
 
 instance SingI a => StaticSize (a :: Nat) where
     type Bound a = Int
