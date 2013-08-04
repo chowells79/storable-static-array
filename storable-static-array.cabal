@@ -1,5 +1,5 @@
 name:                storable-static-array
-version:             0.4.1.0
+version:             0.5.0.0
 synopsis:            Statically-sized array wrappers with Storable instances
                      for FFI marshaling
 description:         Uses type-level numeric literals to wrap arrays in a type

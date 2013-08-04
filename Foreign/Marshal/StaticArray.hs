@@ -32,32 +32,57 @@ and index values already in place. For example, the result of
 
 -}
 module Foreign.Marshal.StaticArray
-       ( StaticArray
-       , Mutable
+       ( -- * Basic interface
+         StaticArray
        , toArray
        , staticArray
        , listStaticArray
-       , StaticSize(..)
+         -- * Adding new Storable instances
+         --
+         -- | This module only has 'Storable' instances for 'UArray'
+         -- and 'Array' as backing types. This is the result of
+         -- ensuring that 'peek' is not implemented with an additional
+         -- copy. The mutable temporary array needs to have a
+         -- representation compatible with that of the result array to
+         -- avoid that extra copy.
+         --
+         -- The following functions provide correct implementations of
+         -- a minimum complete 'Storable' implementation for
+         -- 'StaticArray'. The helper function required by 'peek'' is
+         -- the part necessary for efficient implementations which
+         -- prevent creation of a fully polymorphic instance.
+       , sizeOf'
+       , alignment'
+       , poke'
+       , peek'
+         -- * Adding new StaticSize instances
+         --
+         -- | This module contains instances of 'StaticSize' for types
+         -- of kind 'Nat', types of the promoted kind \'['Nat'], and
+         -- promoted tuples of 'Nat' up to 13 elements. For instances
+         -- not relying on promoted data types, see the
+         -- "Foreign.Marshal.StaticArray.Unpromoted" module.
        , fromNat
+       , StaticSize(..)
        ) where
 
 import GHC.TypeLits
 
 import Control.Monad
 
-import Data.Array.Base
 import Data.Array            (Array)
+import Data.Array.Base
 import Data.Array.IO  hiding (unsafeFreeze)
 import Data.Functor          ((<$>))
 import Data.Proxy            (Proxy(..))
 
 import Foreign.Storable      (Storable(..))
 import Foreign.Marshal.Array (advancePtr)
-import Foreign.Ptr           (castPtr)
+import Foreign.Ptr           (Ptr, castPtr)
 
 
--- | A minimal wrapper for instances of 'IArray' that encodes the full
--- dimensions of the array in the type. Intended for interfacing with
+-- | A minimal array wrapper that encodes the full dimensions of the
+-- array in the type. Intended for interfacing with
 -- (possibly-)multidimensional arrays of fixed size in native code.
 --
 -- The constructor is not exported to prevent creating a StaticArray
@@ -71,21 +96,6 @@ newtype StaticArray backing dimensions (elements :: *) =
 
 instance (IArray b e, Ix (Bound d), Show e) => Show (StaticArray b d e) where
     show = ("listStaticArray " ++) . show . elems . toArray
-
--- | This class connects dimension description types with 'IArray'
--- index types and values.
---
--- This module contains instances for types of kind 'Nat', types of
--- the promoted kind \'['Nat'], and promoted tuples of 'Nat' values up
--- to 13 elements. For instances not relying on promoted data types,
--- see the "Foreign.Marshal.StaticArray.Unpromoted" module.
-class StaticSize d where
-    -- | The bounding type for this dimension description
-    type Bound d :: *
-    -- | The concrete bounds for an array of this
-    -- dimensionality. Implementations of this function should not
-    -- examine their argument in any way.
-    extent :: StaticArray b d e -> (Bound d, Bound d)
 
 -- | Create a new 'StaticArray' from a list of indices and
 -- elements. This has all the semantic caveats of 'array', except that
@@ -101,45 +111,70 @@ listStaticArray :: (StaticSize d, Ix (Bound d), IArray b e) =>
                    [e] -> StaticArray b d e
 listStaticArray ls = let a = StaticArray $ listArray (extent a) ls in a
 
+------------------------------------------------------------------------
 
--- | The 'Mutable' type family is used to associate instances of
--- 'IArray' with instances of 'MArray' that give non-copying
--- 'unsafeFreeze'. This is used to increase the efficiency of 'peek'
--- in 'StaticArray' 's 'Storable' instance.
---
--- If you're using an instance of 'IArray' other than 'Array' or
--- 'UArray', you'll need to add a type instance for your type. If it
--- supports non-copying 'unsafeFreeze', the type instance should
--- return the type constructor for the appropriate 'MArray'
--- instance. Otherwise, just have it return 'IOArray'
-type family Mutable (a :: * -> * -> *) :: * -> * -> *
-type instance Mutable Array = IOArray
-type instance Mutable UArray = IOUArray
+-- | Get the size, in bytes, of the native representation of this
+-- 'StaticArray'.
+sizeOf' :: forall b d e. (StaticSize d, Ix (Bound d), Storable e) =>
+           StaticArray b d e -> Int
+sizeOf' a = sizeOf (undefined :: e) * rangeSize (extent a)
 
-instance (StaticSize d, Ix (Bound d), Storable e, IArray b e,
-          MArray (Mutable b) e IO) =>
-         Storable (StaticArray b d e) where
-    sizeOf a = sizeOf (undefined :: e) * rangeSize (extent a)
-    alignment _ = alignment (undefined :: e)
-    peek src' = do
-        rec let b = extent arr
-            m <- newArray_ b :: IO ((Mutable b) (Bound d) e)
+-- | Get the alignment, in bytes, of the native representation of this
+-- 'StaticArray'
+alignment' :: forall b d e. Storable e => StaticArray b d e -> Int
+alignment' _ = alignment (undefined :: e)
 
-            let src = castPtr src'
-            forM_ [0 .. rangeSize b - 1] $ \i -> do
-                x <- peek $ advancePtr src i
-                unsafeWrite m i x
-
-            arr <- StaticArray <$> unsafeFreeze m
-        return arr
-
-    poke dst' arr = do
+-- | Write the contents of this 'StaticArray' to the given location in
+-- memory.
+poke' :: forall b d e. (Ix (Bound d), IArray b e, Storable e) =>
+         Ptr (StaticArray b d e) -> StaticArray b d e -> IO ()
+poke' dst' arr = do
         let a = toArray arr
             b = bounds a
             dst = castPtr dst'
         forM_ [0 .. rangeSize b - 1] $ \i ->
             poke (advancePtr dst i) $ unsafeAt a i
 
+-- | Create a new 'StaticArray' from the contents of the given
+-- location in memory. Uses a temporary mutable array to build up the
+-- result, then freezes it. The first argument is the
+-- freezing function. Non-copying implementations of 'unsafeFreeze'
+-- are safe as this argument, and preferred.
+peek' :: forall b d e m . (StaticSize d, Ix (Bound d), Storable e,
+                           IArray b e, MArray m e IO) =>
+         (m (Bound d) e -> IO (b (Bound d) e)) ->
+         Ptr (StaticArray b d e) ->
+         IO (StaticArray b d e)
+peek' freeze' src' = do
+    rec let b = extent arr
+        m <- newArray_ b
+
+        let src = castPtr src'
+        forM_ [0 .. rangeSize b - 1] $ \i -> do
+            x <- peek $ advancePtr src i
+            unsafeWrite m i x
+
+        arr <- StaticArray <$> freeze' m
+    return arr
+
+instance (StaticSize d, Ix (Bound d), Storable e,
+          IArray UArray e, MArray IOUArray e IO) =>
+         Storable (StaticArray UArray d e) where
+    sizeOf = sizeOf'
+    alignment = alignment'
+    poke = poke'
+    peek = peek' (unsafeFreeze :: IOUArray (Bound d) e ->
+                                  IO (UArray (Bound d) e))
+
+instance (StaticSize d, Ix (Bound d), Storable e) =>
+         Storable (StaticArray Array d e) where
+    sizeOf = sizeOf'
+    alignment = alignment'
+    poke = poke'
+    peek = peek' (unsafeFreeze :: IOArray (Bound d) e ->
+                                  IO (Array (Bound d) e))
+
+------------------------------------------------------------------------
 
 -- | A conversion function for converting type-level naturals to
 -- value-level. This is being exposed to aid in the creation of
@@ -153,6 +188,16 @@ instance (StaticSize d, Ix (Bound d), Storable e, IArray b e,
 -- dictionary passing and type erasure.
 fromNat :: forall (proxy :: Nat -> *) (n :: Nat). SingI n => proxy n -> Int
 fromNat _ = fromInteger $ fromSing (sing :: Sing n)
+
+-- | This class connects dimension description types with 'IArray'
+-- index types and values.
+class StaticSize d where
+    -- | The bounding type for this dimension description
+    type Bound d :: *
+    -- | The concrete bounds for an array of this
+    -- dimensionality. Implementations of this function should not
+    -- examine their argument in any way.
+    extent :: StaticArray b d e -> (Bound d, Bound d)
 
 instance SingI n => StaticSize ('[n] :: [Nat]) where
     type Bound ('[n]) = Int
