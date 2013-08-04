@@ -51,7 +51,8 @@ import Foreign.Marshal.StaticArray
 -- ('Int',('Int','Int')) 'Int'@ with bounds @((0,(0,0)),(1,(9,24)))@.
 --
 -- Neither promoted lists nor this approach support creating
--- 0-dimensional arrays, because they make no sense with 'Storable'.
+-- 0-dimensional arrays, because they make no sense with
+-- 'Foreign.Storable.Storable'.
 data a :. b
 
 -- | 'Nil' is the terminator for type-level lists created with ':.'
