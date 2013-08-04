@@ -46,11 +46,11 @@ module Foreign.Marshal.StaticArray
          -- representation compatible with that of the result array to
          -- avoid that extra copy.
          --
-         -- The following functions provide correct implementations of
-         -- a minimum complete 'Storable' implementation for
-         -- 'StaticArray'. The helper function required by 'peek'' is
-         -- the part necessary for efficient implementations which
-         -- prevent creation of a fully polymorphic instance.
+         -- The following functions provide a minimum complete,
+         -- correct 'Storable' implementation for 'StaticArray'. The
+         -- helper function required by 'peek'' is the part necessary
+         -- for efficient implementations which prevent creation of a
+         -- fully polymorphic instance.
        , sizeOf'
        , alignment'
        , poke'
