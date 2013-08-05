@@ -35,6 +35,7 @@ module Foreign.Marshal.StaticArray
        ( -- * Basic interface
          StaticArray
        , toArray
+       , staticBounds
        , staticArray
        , listStaticArray
          -- * Adding new Storable instances
@@ -81,6 +82,12 @@ newtype StaticArray backing dimensions (elements :: *) =
 instance (IArray b e, Ix (Bound d), Show e) => Show (StaticArray b d e) where
     show = ("listStaticArray " ++) . show . elems . toArray
 
+-- | Get the compile-time bounds from a 'StaticArray'. Does not examine its
+-- argument.
+staticBounds :: forall b d e. StaticSize d =>
+                StaticArray b d e -> (Bound d, Bound d)
+staticBounds _ = untag (extent :: Tagged d (Bound d, Bound d))
+
 -- | Create a new 'StaticArray' from a list of indices and
 -- elements. This has all the semantic caveats of 'array', except that
 -- the bounds are as good as those provided by the 'StaticSize'
@@ -88,14 +95,14 @@ instance (IArray b e, Ix (Bound d), Show e) => Show (StaticArray b d e) where
 {-# INLINEABLE staticArray #-}
 staticArray :: (Ix (Bound d), IArray b e, StaticSize d) =>
                [(Bound d, e)] -> StaticArray b d e
-staticArray ls = let a = StaticArray $ array (ex a) ls in a
+staticArray ls = let a = StaticArray $ array (staticBounds a) ls in a
 
 -- | Create a new 'StaticArray' from a list of elements in index
 -- order. Implemented in terms of 'listArray'.
 {-# INLINEABLE listStaticArray #-}
 listStaticArray :: (StaticSize d, Ix (Bound d), IArray b e) =>
                    [e] -> StaticArray b d e
-listStaticArray ls = let a = StaticArray $ listArray (ex a) ls in a
+listStaticArray ls = let a = StaticArray $ listArray (staticBounds a) ls in a
 
 
 ------------------------------------------------------------------------
@@ -118,7 +125,7 @@ listStaticArray ls = let a = StaticArray $ listArray (ex a) ls in a
 {-# INLINEABLE sizeOf' #-}
 sizeOf' :: forall b d e. (StaticSize d, Ix (Bound d), Storable e) =>
            StaticArray b d e -> Int
-sizeOf' a = sizeOf (undefined :: e) * rangeSize (ex a)
+sizeOf' a = sizeOf (undefined :: e) * rangeSize (staticBounds a)
 
 -- | Get the alignment, in bytes, of the native representation of this
 -- 'StaticArray'
@@ -150,7 +157,7 @@ peek' :: forall b d e m . (StaticSize d, Ix (Bound d), Storable e,
          Ptr (StaticArray b d e) ->
          IO (StaticArray b d e)
 peek' freeze' src' = do
-    rec let b = ex arr
+    rec let b = staticBounds arr
         m <- newArray_ b
 
         let src = castPtr src'
@@ -207,11 +214,6 @@ instance (StaticSize d, Ix (Bound d), Storable e) =>
 -- dictionary passing and type erasure.
 fromNat :: forall (proxy :: Nat -> *) (n :: Nat). SingI n => proxy n -> Int
 fromNat _ = fromInteger $ fromSing (sing :: Sing n)
-
--- Get the bounds from a 'StaticArray'. Does not examine its
--- argument in any way.
-ex :: forall b d e. StaticSize d => StaticArray b d e -> (Bound d, Bound d)
-ex _ = untag (extent :: Tagged d (Bound d, Bound d))
 
 -- | This class connects dimension description types with 'IArray'
 -- index types and values.
