@@ -46,6 +46,7 @@ module Foreign.Marshal.StaticArray
          -- * Adding new StaticSize instances
          -- $NewStaticSize
        , fromNat
+       , extent
        , StaticSize(..)
        ) where
 
@@ -57,7 +58,8 @@ import Data.Array            (Array)
 import Data.Array.Base
 import Data.Array.IO  hiding (unsafeFreeze)
 import Data.Functor          ((<$>))
-import Data.Proxy            (Proxy(..))
+import Data.Proxy
+import Data.Tagged
 
 import Foreign.Storable      (Storable(..))
 import Foreign.Marshal.Array (advancePtr)
@@ -204,9 +206,13 @@ instance (StaticSize d, Ix (Bound d), Storable e) =>
 -- automatically fulfilled for all types of kind 'Nat'. Its explicit
 -- presence in the signature is an artifact of how GHC implements
 -- dictionary passing and type erasure.
-{-# INLINEABLE fromNat #-}
 fromNat :: forall (proxy :: Nat -> *) (n :: Nat). SingI n => proxy n -> Int
 fromNat _ = fromInteger $ fromSing (sing :: Sing n)
+
+-- | Get the bounds from a 'StaticArray'. Does not examine its
+-- argument in any way.
+extent :: forall b d e. StaticSize d => StaticArray b d e -> (Bound d, Bound d)
+extent _ = untag (extentTag :: Tagged d (Bound d, Bound d))
 
 -- | This class connects dimension description types with 'IArray'
 -- index types and values.
@@ -214,91 +220,83 @@ class StaticSize d where
     -- | The bounding type for this dimension description
     type Bound d :: *
     -- | The concrete bounds for an array of this
-    -- dimensionality. Implementations of this function should not
-    -- examine their argument in any way.
-    extent :: StaticArray b d e -> (Bound d, Bound d)
+    -- dimensionality, tagged with the dimensionality.
+    extentTag :: Tagged d (Bound d, Bound d)
 
 instance SingI n => StaticSize ('[n] :: [Nat]) where
     type Bound ('[n]) = Int
-    {-# INLINEABLE extent #-}
-    extent _ = (0, fromNat (Proxy :: Proxy n) - 1)
+    extentTag = Tagged (0, fromNat (Proxy :: Proxy n) - 1)
 
 instance (SingI n, StaticSize (n2 ': ns)) =>
           StaticSize ((n ': n2 ': ns) :: [Nat]) where
     type Bound (n ': n2 ': ns) = (Int, Bound (n2 ': ns))
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
+    extentTag = Tagged ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
-        (b0, bn) = extent (undefined :: StaticArray a (n2 ': ns) b)
+        (b0, bn) = untag (extentTag :: Tagged (n2 ': ns)
+                                              (Bound (n2 ': ns),
+                                               Bound (n2 ': ns)))
 
 instance SingI a => StaticSize (a :: Nat) where
     type Bound a = Int
-    {-# INLINEABLE extent #-}
-    extent _ = (0, fromNat (Proxy :: Proxy a) - 1)
+    extentTag = Tagged (0, fromNat (Proxy :: Proxy a) - 1)
 
 instance (SingI a, SingI b) => StaticSize ('(a, b) :: (Nat, Nat)) where
     type Bound '(a, b) = (Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1))
+    extentTag = Tagged ((0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                        fromNat (Proxy :: Proxy b) - 1))
 
 instance (SingI a, SingI b, SingI c) =>
          StaticSize ('(a, b, c) :: (Nat, Nat, Nat)) where
     type Bound '(a, b, c) = (Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1))
+    extentTag = Tagged ((0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d) =>
          StaticSize ('(a, b, c, d) :: (Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d) = (Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1))
+    extentTag = Tagged ((0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d, SingI e) =>
          StaticSize ('(a, b, c, d, e) :: (Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e) = (Int, Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1,
-                 fromNat (Proxy :: Proxy e) - 1))
+    extentTag = Tagged ((0, 0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1,
+                         fromNat (Proxy :: Proxy e) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f) =>
          StaticSize ('(a, b, c, d, e, f) ::
                      (Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f) = (Int, Int, Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1,
-                 fromNat (Proxy :: Proxy e) - 1,
-                 fromNat (Proxy :: Proxy f) - 1))
+    extentTag = Tagged ((0, 0, 0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1,
+                         fromNat (Proxy :: Proxy e) - 1,
+                         fromNat (Proxy :: Proxy f) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g) =>
          StaticSize ('(a, b, c, d, e, f, g) ::
                      (Nat, Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g) = (Int, Int, Int, Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1,
-                 fromNat (Proxy :: Proxy e) - 1,
-                 fromNat (Proxy :: Proxy f) - 1,
-                 fromNat (Proxy :: Proxy g) - 1))
+    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1,
+                         fromNat (Proxy :: Proxy e) - 1,
+                         fromNat (Proxy :: Proxy f) - 1,
+                         fromNat (Proxy :: Proxy g) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
           SingI h) =>
@@ -306,16 +304,15 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                      (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g, h) =
         (Int, Int, Int, Int, Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0, 0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1,
-                 fromNat (Proxy :: Proxy e) - 1,
-                 fromNat (Proxy :: Proxy f) - 1,
-                 fromNat (Proxy :: Proxy g) - 1,
-                 fromNat (Proxy :: Proxy h) - 1))
+    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1,
+                         fromNat (Proxy :: Proxy e) - 1,
+                         fromNat (Proxy :: Proxy f) - 1,
+                         fromNat (Proxy :: Proxy g) - 1,
+                         fromNat (Proxy :: Proxy h) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
           SingI h, SingI i) =>
@@ -323,17 +320,16 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                      (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g, h, i) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1,
-                 fromNat (Proxy :: Proxy e) - 1,
-                 fromNat (Proxy :: Proxy f) - 1,
-                 fromNat (Proxy :: Proxy g) - 1,
-                 fromNat (Proxy :: Proxy h) - 1,
-                 fromNat (Proxy :: Proxy i) - 1))
+    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1,
+                         fromNat (Proxy :: Proxy e) - 1,
+                         fromNat (Proxy :: Proxy f) - 1,
+                         fromNat (Proxy :: Proxy g) - 1,
+                         fromNat (Proxy :: Proxy h) - 1,
+                         fromNat (Proxy :: Proxy i) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
           SingI h, SingI i, SingI j) =>
@@ -341,18 +337,17 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                      (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g, h, i, j) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1,
-                 fromNat (Proxy :: Proxy e) - 1,
-                 fromNat (Proxy :: Proxy f) - 1,
-                 fromNat (Proxy :: Proxy g) - 1,
-                 fromNat (Proxy :: Proxy h) - 1,
-                 fromNat (Proxy :: Proxy i) - 1,
-                 fromNat (Proxy :: Proxy j) - 1))
+    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1,
+                         fromNat (Proxy :: Proxy e) - 1,
+                         fromNat (Proxy :: Proxy f) - 1,
+                         fromNat (Proxy :: Proxy g) - 1,
+                         fromNat (Proxy :: Proxy h) - 1,
+                         fromNat (Proxy :: Proxy i) - 1,
+                         fromNat (Proxy :: Proxy j) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
           SingI h, SingI i, SingI j, SingI k) =>
@@ -361,19 +356,18 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
       where
     type Bound '(a, b, c, d, e, f, g, h, i, j, k) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1,
-                 fromNat (Proxy :: Proxy e) - 1,
-                 fromNat (Proxy :: Proxy f) - 1,
-                 fromNat (Proxy :: Proxy g) - 1,
-                 fromNat (Proxy :: Proxy h) - 1,
-                 fromNat (Proxy :: Proxy i) - 1,
-                 fromNat (Proxy :: Proxy j) - 1,
-                 fromNat (Proxy :: Proxy k) - 1))
+    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1,
+                         fromNat (Proxy :: Proxy e) - 1,
+                         fromNat (Proxy :: Proxy f) - 1,
+                         fromNat (Proxy :: Proxy g) - 1,
+                         fromNat (Proxy :: Proxy h) - 1,
+                         fromNat (Proxy :: Proxy i) - 1,
+                         fromNat (Proxy :: Proxy j) - 1,
+                         fromNat (Proxy :: Proxy k) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
           SingI h, SingI i, SingI j, SingI k, SingI l) =>
@@ -382,20 +376,19 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                       Nat)) where
     type Bound '(a, b, c, d, e, f, g, h, i, j, k, l) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1,
-                 fromNat (Proxy :: Proxy e) - 1,
-                 fromNat (Proxy :: Proxy f) - 1,
-                 fromNat (Proxy :: Proxy g) - 1,
-                 fromNat (Proxy :: Proxy h) - 1,
-                 fromNat (Proxy :: Proxy i) - 1,
-                 fromNat (Proxy :: Proxy j) - 1,
-                 fromNat (Proxy :: Proxy k) - 1,
-                 fromNat (Proxy :: Proxy l) - 1))
+    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1,
+                         fromNat (Proxy :: Proxy e) - 1,
+                         fromNat (Proxy :: Proxy f) - 1,
+                         fromNat (Proxy :: Proxy g) - 1,
+                         fromNat (Proxy :: Proxy h) - 1,
+                         fromNat (Proxy :: Proxy i) - 1,
+                         fromNat (Proxy :: Proxy j) - 1,
+                         fromNat (Proxy :: Proxy k) - 1,
+                         fromNat (Proxy :: Proxy l) - 1))
 
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
           SingI h, SingI i, SingI j, SingI k, SingI l, SingI m) =>
@@ -404,18 +397,17 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                       Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g, h, i, j, k, l, m) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    {-# INLINEABLE extent #-}
-    extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                (fromNat (Proxy :: Proxy a) - 1,
-                 fromNat (Proxy :: Proxy b) - 1,
-                 fromNat (Proxy :: Proxy c) - 1,
-                 fromNat (Proxy :: Proxy d) - 1,
-                 fromNat (Proxy :: Proxy e) - 1,
-                 fromNat (Proxy :: Proxy f) - 1,
-                 fromNat (Proxy :: Proxy g) - 1,
-                 fromNat (Proxy :: Proxy h) - 1,
-                 fromNat (Proxy :: Proxy i) - 1,
-                 fromNat (Proxy :: Proxy j) - 1,
-                 fromNat (Proxy :: Proxy k) - 1,
-                 fromNat (Proxy :: Proxy l) - 1,
-                 fromNat (Proxy :: Proxy m) - 1))
+    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                        (fromNat (Proxy :: Proxy a) - 1,
+                         fromNat (Proxy :: Proxy b) - 1,
+                         fromNat (Proxy :: Proxy c) - 1,
+                         fromNat (Proxy :: Proxy d) - 1,
+                         fromNat (Proxy :: Proxy e) - 1,
+                         fromNat (Proxy :: Proxy f) - 1,
+                         fromNat (Proxy :: Proxy g) - 1,
+                         fromNat (Proxy :: Proxy h) - 1,
+                         fromNat (Proxy :: Proxy i) - 1,
+                         fromNat (Proxy :: Proxy j) - 1,
+                         fromNat (Proxy :: Proxy k) - 1,
+                         fromNat (Proxy :: Proxy l) - 1,
+                         fromNat (Proxy :: Proxy m) - 1))
