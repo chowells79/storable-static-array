@@ -38,30 +38,13 @@ module Foreign.Marshal.StaticArray
        , staticArray
        , listStaticArray
          -- * Adding new Storable instances
-         --
-         -- | This module only has 'Storable' instances for 'UArray'
-         -- and 'Array' as backing types. This is the result of
-         -- ensuring that 'peek' is not implemented with an additional
-         -- copy. The mutable temporary array needs to have a
-         -- representation compatible with that of the result array to
-         -- avoid that extra copy.
-         --
-         -- The following functions provide a minimum complete,
-         -- correct 'Storable' implementation for 'StaticArray'. The
-         -- helper function required by 'peek'' is the part necessary
-         -- for efficient implementations which prevent creation of a
-         -- fully polymorphic instance.
+         -- $NewStorable
        , sizeOf'
        , alignment'
        , poke'
        , peek'
          -- * Adding new StaticSize instances
-         --
-         -- | This module contains instances of 'StaticSize' for types
-         -- of kind 'Nat', types of the promoted kind \'['Nat'], and
-         -- promoted tuples of 'Nat' up to 13 elements. For instances
-         -- not relying on promoted data types, see the
-         -- "Foreign.Marshal.StaticArray.Unpromoted" module.
+         -- $NewStaticSize
        , fromNat
        , StaticSize(..)
        ) where
@@ -113,7 +96,21 @@ listStaticArray :: (StaticSize d, Ix (Bound d), IArray b e) =>
                    [e] -> StaticArray b d e
 listStaticArray ls = let a = StaticArray $ listArray (extent a) ls in a
 
+
 ------------------------------------------------------------------------
+-- $NewStorable
+--
+-- This module only has 'Storable' instances for 'UArray' and 'Array'
+-- as backing types. This is the result of ensuring that 'peek' is not
+-- implemented with an additional copy. The mutable temporary array
+-- needs to have a representation compatible with that of the result
+-- array to avoid that extra copy.
+--
+-- The following functions provide a minimum complete, correct
+-- 'Storable' implementation for 'StaticArray'. The helper function
+-- required by 'peek'' is the part necessary for efficient
+-- implementations which prevent creation of a fully polymorphic
+-- instance.
 
 -- | Get the size, in bytes, of the native representation of this
 -- 'StaticArray'.
@@ -188,7 +185,14 @@ instance (StaticSize d, Ix (Bound d), Storable e) =>
     peek = peek' (unsafeFreeze :: IOArray (Bound d) e ->
                                   IO (Array (Bound d) e))
 
+
 ------------------------------------------------------------------------
+-- $NewStaticSize
+--
+-- This module contains instances of 'StaticSize' for types of kind
+-- 'Nat', types of the promoted kind \'['Nat'], and promoted tuples of
+-- 'Nat' up to 13 elements. For instances not relying on promoted data
+-- types, see the "Foreign.Marshal.StaticArray.Unpromoted" module.
 
 -- | A conversion function for converting type-level naturals to
 -- value-level. This is being exposed to aid in the creation of
