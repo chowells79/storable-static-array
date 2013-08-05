@@ -62,45 +62,45 @@ data Nil
 
 instance SingI n => StaticSize ((n :: Nat) :. Nil) where
     type Bound (n :. Nil) = Int
-    extentTag = Tagged (0, fromNat (Proxy :: Proxy n) - 1)
+    extent = Tagged (0, fromNat (Proxy :: Proxy n) - 1)
 
 instance (SingI n, StaticSize (n2 :. ns)) =>
           StaticSize ((n :: Nat) :. n2 :. ns) where
     type Bound (n :. n2 :. ns) = (Int, Bound (n2 :. ns))
-    extentTag = Tagged ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
+    extent = Tagged ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
-        (b0, bn) = untag (extentTag :: Tagged (n2 :. ns)
-                                       (Bound (n2 :. ns), Bound (n2 :. ns)))
+        (b0, bn) = untag (extent :: Tagged (n2 :. ns)
+                                    (Bound (n2 :. ns), Bound (n2 :. ns)))
 
 -- | An alternative dimension type to promoted pairs, provided for
 -- syntactic compatibility with @CPP@.
 data D2 (a :: Nat) (b :: Nat)
 instance (SingI a, SingI b) => StaticSize (D2 a b) where
     type Bound (D2 a b) = (Int, Int)
-    extentTag = Tagged ((0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1))
+    extent = Tagged ((0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1))
 
 -- | An alternative dimension type to promoted triples, provided for
 -- syntactic compatibility with @CPP@.
 data D3 (a :: Nat) (b :: Nat) (c :: Nat)
 instance (SingI a, SingI b, SingI c) => StaticSize (D3 a b c) where
     type Bound (D3 a b c) = (Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1))
+    extent = Tagged ((0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1))
 
 -- | An alternative dimension type to promoted 4-tuples, provided for
 -- syntactic compatibility with @CPP@.
 data D4 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat)
 instance (SingI a, SingI b, SingI c, SingI d) => StaticSize (D4 a b c d) where
     type Bound (D4 a b c d) = (Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1))
+    extent = Tagged ((0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1))
 
 -- | An alternative dimension type to promoted 5-tuples, provided for
 -- syntactic compatibility with @CPP@.
@@ -108,12 +108,12 @@ data D5 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat) (e :: Nat)
 instance (SingI a, SingI b, SingI c, SingI d, SingI e) =>
          StaticSize (D5 a b c d e) where
     type Bound (D5 a b c d e) = (Int, Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1,
-                         fromNat (Proxy :: Proxy e) - 1))
+    extent = Tagged ((0, 0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1,
+                      fromNat (Proxy :: Proxy e) - 1))
 
 -- | An alternative dimension type to promoted 6-tuples, provided for
 -- syntactic compatibility with @CPP@.
@@ -121,13 +121,13 @@ data D6 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat) (e :: Nat) (f :: Nat)
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f) =>
          StaticSize (D6 a b c d e f) where
     type Bound (D6 a b c d e f) = (Int, Int, Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1,
-                         fromNat (Proxy :: Proxy e) - 1,
-                         fromNat (Proxy :: Proxy f) - 1))
+    extent = Tagged ((0, 0, 0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1,
+                      fromNat (Proxy :: Proxy e) - 1,
+                      fromNat (Proxy :: Proxy f) - 1))
 
 -- | An alternative dimension type to promoted 7-tuples, provided for
 -- syntactic compatibility with @CPP@.
@@ -136,14 +136,14 @@ data D7 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat) (e :: Nat) (f :: Nat)
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g) =>
          StaticSize (D7 a b c d e f g) where
     type Bound (D7 a b c d e f g) = (Int, Int, Int, Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1,
-                         fromNat (Proxy :: Proxy e) - 1,
-                         fromNat (Proxy :: Proxy f) - 1,
-                         fromNat (Proxy :: Proxy g) - 1))
+    extent = Tagged ((0, 0, 0, 0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1,
+                      fromNat (Proxy :: Proxy e) - 1,
+                      fromNat (Proxy :: Proxy f) - 1,
+                      fromNat (Proxy :: Proxy g) - 1))
 
 -- | An alternative dimension type to promoted 8-tuples, provided for
 -- syntactic compatibility with @CPP@.
@@ -153,15 +153,15 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
           SingI h) =>
          StaticSize (D8 a b c d e f g h) where
     type Bound (D8 a b c d e f g h) = (Int, Int, Int, Int, Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1,
-                         fromNat (Proxy :: Proxy e) - 1,
-                         fromNat (Proxy :: Proxy f) - 1,
-                         fromNat (Proxy :: Proxy g) - 1,
-                         fromNat (Proxy :: Proxy h) - 1))
+    extent = Tagged ((0, 0, 0, 0, 0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1,
+                      fromNat (Proxy :: Proxy e) - 1,
+                      fromNat (Proxy :: Proxy f) - 1,
+                      fromNat (Proxy :: Proxy g) - 1,
+                      fromNat (Proxy :: Proxy h) - 1))
 
 -- | An alternative dimension type to promoted 9-tuples, provided for
 -- syntactic compatibility with @CPP@.
@@ -172,16 +172,16 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D9 a b c d e f g h i) where
     type Bound (D9 a b c d e f g h i) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1,
-                         fromNat (Proxy :: Proxy e) - 1,
-                         fromNat (Proxy :: Proxy f) - 1,
-                         fromNat (Proxy :: Proxy g) - 1,
-                         fromNat (Proxy :: Proxy h) - 1,
-                         fromNat (Proxy :: Proxy i) - 1))
+    extent = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1,
+                      fromNat (Proxy :: Proxy e) - 1,
+                      fromNat (Proxy :: Proxy f) - 1,
+                      fromNat (Proxy :: Proxy g) - 1,
+                      fromNat (Proxy :: Proxy h) - 1,
+                      fromNat (Proxy :: Proxy i) - 1))
 
 -- | An alternative dimension type to promoted 10-tuples, provided for
 -- syntactic compatibility with @CPP@.
@@ -192,17 +192,17 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D10 a b c d e f g h i j) where
     type Bound (D10 a b c d e f g h i j) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1,
-                         fromNat (Proxy :: Proxy e) - 1,
-                         fromNat (Proxy :: Proxy f) - 1,
-                         fromNat (Proxy :: Proxy g) - 1,
-                         fromNat (Proxy :: Proxy h) - 1,
-                         fromNat (Proxy :: Proxy i) - 1,
-                         fromNat (Proxy :: Proxy j) - 1))
+    extent = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1,
+                      fromNat (Proxy :: Proxy e) - 1,
+                      fromNat (Proxy :: Proxy f) - 1,
+                      fromNat (Proxy :: Proxy g) - 1,
+                      fromNat (Proxy :: Proxy h) - 1,
+                      fromNat (Proxy :: Proxy i) - 1,
+                      fromNat (Proxy :: Proxy j) - 1))
 
 -- | An alternative dimension type to promoted 11-tuples, provided for
 -- syntactic compatibility with @CPP@.
@@ -213,18 +213,18 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D11 a b c d e f g h i j k) where
     type Bound (D11 a b c d e f g h i j k) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1,
-                         fromNat (Proxy :: Proxy e) - 1,
-                         fromNat (Proxy :: Proxy f) - 1,
-                         fromNat (Proxy :: Proxy g) - 1,
-                         fromNat (Proxy :: Proxy h) - 1,
-                         fromNat (Proxy :: Proxy i) - 1,
-                         fromNat (Proxy :: Proxy j) - 1,
-                         fromNat (Proxy :: Proxy k) - 1))
+    extent = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1,
+                      fromNat (Proxy :: Proxy e) - 1,
+                      fromNat (Proxy :: Proxy f) - 1,
+                      fromNat (Proxy :: Proxy g) - 1,
+                      fromNat (Proxy :: Proxy h) - 1,
+                      fromNat (Proxy :: Proxy i) - 1,
+                      fromNat (Proxy :: Proxy j) - 1,
+                      fromNat (Proxy :: Proxy k) - 1))
 
 -- | An alternative dimension type to promoted 12-tuples, provided for
 -- syntactic compatibility with @CPP@.
@@ -235,19 +235,19 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D12 a b c d e f g h i j k l) where
     type Bound (D12 a b c d e f g h i j k l) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1,
-                         fromNat (Proxy :: Proxy e) - 1,
-                         fromNat (Proxy :: Proxy f) - 1,
-                         fromNat (Proxy :: Proxy g) - 1,
-                         fromNat (Proxy :: Proxy h) - 1,
-                         fromNat (Proxy :: Proxy i) - 1,
-                         fromNat (Proxy :: Proxy j) - 1,
-                         fromNat (Proxy :: Proxy k) - 1,
-                         fromNat (Proxy :: Proxy l) - 1))
+    extent = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1,
+                      fromNat (Proxy :: Proxy e) - 1,
+                      fromNat (Proxy :: Proxy f) - 1,
+                      fromNat (Proxy :: Proxy g) - 1,
+                      fromNat (Proxy :: Proxy h) - 1,
+                      fromNat (Proxy :: Proxy i) - 1,
+                      fromNat (Proxy :: Proxy j) - 1,
+                      fromNat (Proxy :: Proxy k) - 1,
+                      fromNat (Proxy :: Proxy l) - 1))
 
 -- | An alternative dimension type to promoted 13-tuples, provided for
 -- syntactic compatibility with @CPP@.
@@ -259,17 +259,17 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D13 a b c d e f g h i j k l m) where
     type Bound (D13 a b c d e f g h i j k l m) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
-    extentTag = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                        (fromNat (Proxy :: Proxy a) - 1,
-                         fromNat (Proxy :: Proxy b) - 1,
-                         fromNat (Proxy :: Proxy c) - 1,
-                         fromNat (Proxy :: Proxy d) - 1,
-                         fromNat (Proxy :: Proxy e) - 1,
-                         fromNat (Proxy :: Proxy f) - 1,
-                         fromNat (Proxy :: Proxy g) - 1,
-                         fromNat (Proxy :: Proxy h) - 1,
-                         fromNat (Proxy :: Proxy i) - 1,
-                         fromNat (Proxy :: Proxy j) - 1,
-                         fromNat (Proxy :: Proxy k) - 1,
-                         fromNat (Proxy :: Proxy l) - 1,
-                         fromNat (Proxy :: Proxy m) - 1))
+    extent = Tagged ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                     (fromNat (Proxy :: Proxy a) - 1,
+                      fromNat (Proxy :: Proxy b) - 1,
+                      fromNat (Proxy :: Proxy c) - 1,
+                      fromNat (Proxy :: Proxy d) - 1,
+                      fromNat (Proxy :: Proxy e) - 1,
+                      fromNat (Proxy :: Proxy f) - 1,
+                      fromNat (Proxy :: Proxy g) - 1,
+                      fromNat (Proxy :: Proxy h) - 1,
+                      fromNat (Proxy :: Proxy i) - 1,
+                      fromNat (Proxy :: Proxy j) - 1,
+                      fromNat (Proxy :: Proxy k) - 1,
+                      fromNat (Proxy :: Proxy l) - 1,
+                      fromNat (Proxy :: Proxy m) - 1))
