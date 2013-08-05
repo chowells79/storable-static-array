@@ -61,11 +61,13 @@ data Nil
 
 instance SingI n => StaticSize ((n :: Nat) :. Nil) where
     type Bound (n :. Nil) = Int
+    {-# INLINEABLE extent #-}
     extent _ = (0, fromNat (Proxy :: Proxy n) - 1)
 
 instance (SingI n, StaticSize (n2 :. ns)) =>
           StaticSize ((n :: Nat) :. n2 :. ns) where
     type Bound (n :. n2 :. ns) = (Int, Bound (n2 :. ns))
+    {-# INLINEABLE extent #-}
     extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
         (b0, bn) = extent (undefined :: StaticArray a (n2 :. ns) b)
@@ -75,6 +77,7 @@ instance (SingI n, StaticSize (n2 :. ns)) =>
 data D2 (a :: Nat) (b :: Nat)
 instance (SingI a, SingI b) => StaticSize (D2 a b) where
     type Bound (D2 a b) = (Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1))
@@ -84,6 +87,7 @@ instance (SingI a, SingI b) => StaticSize (D2 a b) where
 data D3 (a :: Nat) (b :: Nat) (c :: Nat)
 instance (SingI a, SingI b, SingI c) => StaticSize (D3 a b c) where
     type Bound (D3 a b c) = (Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -94,6 +98,7 @@ instance (SingI a, SingI b, SingI c) => StaticSize (D3 a b c) where
 data D4 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat)
 instance (SingI a, SingI b, SingI c, SingI d) => StaticSize (D4 a b c d) where
     type Bound (D4 a b c d) = (Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -106,6 +111,7 @@ data D5 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat) (e :: Nat)
 instance (SingI a, SingI b, SingI c, SingI d, SingI e) =>
          StaticSize (D5 a b c d e) where
     type Bound (D5 a b c d e) = (Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -119,6 +125,7 @@ data D6 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat) (e :: Nat) (f :: Nat)
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f) =>
          StaticSize (D6 a b c d e f) where
     type Bound (D6 a b c d e f) = (Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -134,6 +141,7 @@ data D7 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat) (e :: Nat) (f :: Nat)
 instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g) =>
          StaticSize (D7 a b c d e f g) where
     type Bound (D7 a b c d e f g) = (Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -151,6 +159,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
           SingI h) =>
          StaticSize (D8 a b c d e f g h) where
     type Bound (D8 a b c d e f g h) = (Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -170,6 +179,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D9 a b c d e f g h i) where
     type Bound (D9 a b c d e f g h i) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -190,6 +200,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D10 a b c d e f g h i j) where
     type Bound (D10 a b c d e f g h i j) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -211,6 +222,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D11 a b c d e f g h i j k) where
     type Bound (D11 a b c d e f g h i j k) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -233,6 +245,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D12 a b c d e f g h i j k l) where
     type Bound (D12 a b c d e f g h i j k l) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -257,6 +270,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
          StaticSize (D13 a b c d e f g h i j k l m) where
     type Bound (D13 a b c d e f g h i j k l m) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,

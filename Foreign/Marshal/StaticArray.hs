@@ -101,12 +101,14 @@ instance (IArray b e, Ix (Bound d), Show e) => Show (StaticArray b d e) where
 -- elements. This has all the semantic caveats of 'array', except that
 -- the bounds are as good as those provided by the 'StaticSize'
 -- instance.
+{-# INLINEABLE staticArray #-}
 staticArray :: (Ix (Bound d), IArray b e, StaticSize d) =>
                [(Bound d, e)] -> StaticArray b d e
 staticArray ls = let a = StaticArray $ array (extent a) ls in a
 
 -- | Create a new 'StaticArray' from a list of elements in index
 -- order. Implemented in terms of 'listArray'.
+{-# INLINEABLE listStaticArray #-}
 listStaticArray :: (StaticSize d, Ix (Bound d), IArray b e) =>
                    [e] -> StaticArray b d e
 listStaticArray ls = let a = StaticArray $ listArray (extent a) ls in a
@@ -115,17 +117,20 @@ listStaticArray ls = let a = StaticArray $ listArray (extent a) ls in a
 
 -- | Get the size, in bytes, of the native representation of this
 -- 'StaticArray'.
+{-# INLINEABLE sizeOf' #-}
 sizeOf' :: forall b d e. (StaticSize d, Ix (Bound d), Storable e) =>
            StaticArray b d e -> Int
 sizeOf' a = sizeOf (undefined :: e) * rangeSize (extent a)
 
 -- | Get the alignment, in bytes, of the native representation of this
 -- 'StaticArray'
+{-# INLINEABLE alignment' #-}
 alignment' :: forall b d e. Storable e => StaticArray b d e -> Int
 alignment' _ = alignment (undefined :: e)
 
 -- | Write the contents of this 'StaticArray' to the given location in
 -- memory.
+{-# INLINEABLE poke' #-}
 poke' :: forall b d e. (Ix (Bound d), IArray b e, Storable e) =>
          Ptr (StaticArray b d e) -> StaticArray b d e -> IO ()
 poke' dst' arr = do
@@ -140,6 +145,7 @@ poke' dst' arr = do
 -- result, then freezes it. The first argument is the
 -- freezing function. Non-copying implementations of 'unsafeFreeze'
 -- are safe as this argument, and preferred.
+{-# INLINEABLE peek' #-}
 peek' :: forall b d e m . (StaticSize d, Ix (Bound d), Storable e,
                            IArray b e, MArray m e IO) =>
          (m (Bound d) e -> IO (b (Bound d) e)) ->
@@ -160,17 +166,25 @@ peek' freeze' src' = do
 instance (StaticSize d, Ix (Bound d), Storable e,
           IArray UArray e, MArray IOUArray e IO) =>
          Storable (StaticArray UArray d e) where
+    {-# INLINEABLE sizeOf#-}
     sizeOf = sizeOf'
+    {-# INLINEABLE alignment #-}
     alignment = alignment'
+    {-# INLINEABLE poke #-}
     poke = poke'
+    {-# INLINEABLE peek #-}
     peek = peek' (unsafeFreeze :: IOUArray (Bound d) e ->
                                   IO (UArray (Bound d) e))
 
 instance (StaticSize d, Ix (Bound d), Storable e) =>
          Storable (StaticArray Array d e) where
+    {-# INLINEABLE sizeOf #-}
     sizeOf = sizeOf'
+    {-# INLINEABLE alignment #-}
     alignment = alignment'
+    {-# INLINEABLE poke #-}
     poke = poke'
+    {-# INLINEABLE peek #-}
     peek = peek' (unsafeFreeze :: IOArray (Bound d) e ->
                                   IO (Array (Bound d) e))
 
@@ -186,6 +200,7 @@ instance (StaticSize d, Ix (Bound d), Storable e) =>
 -- automatically fulfilled for all types of kind 'Nat'. Its explicit
 -- presence in the signature is an artifact of how GHC implements
 -- dictionary passing and type erasure.
+{-# INLINEABLE fromNat #-}
 fromNat :: forall (proxy :: Nat -> *) (n :: Nat). SingI n => proxy n -> Int
 fromNat _ = fromInteger $ fromSing (sing :: Sing n)
 
@@ -201,21 +216,25 @@ class StaticSize d where
 
 instance SingI n => StaticSize ('[n] :: [Nat]) where
     type Bound ('[n]) = Int
+    {-# INLINEABLE extent #-}
     extent _ = (0, fromNat (Proxy :: Proxy n) - 1)
 
 instance (SingI n, StaticSize (n2 ': ns)) =>
           StaticSize ((n ': n2 ': ns) :: [Nat]) where
     type Bound (n ': n2 ': ns) = (Int, Bound (n2 ': ns))
+    {-# INLINEABLE extent #-}
     extent _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
         (b0, bn) = extent (undefined :: StaticArray a (n2 ': ns) b)
 
 instance SingI a => StaticSize (a :: Nat) where
     type Bound a = Int
+    {-# INLINEABLE extent #-}
     extent _ = (0, fromNat (Proxy :: Proxy a) - 1)
 
 instance (SingI a, SingI b) => StaticSize ('(a, b) :: (Nat, Nat)) where
     type Bound '(a, b) = (Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1))
@@ -223,6 +242,7 @@ instance (SingI a, SingI b) => StaticSize ('(a, b) :: (Nat, Nat)) where
 instance (SingI a, SingI b, SingI c) =>
          StaticSize ('(a, b, c) :: (Nat, Nat, Nat)) where
     type Bound '(a, b, c) = (Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -231,6 +251,7 @@ instance (SingI a, SingI b, SingI c) =>
 instance (SingI a, SingI b, SingI c, SingI d) =>
          StaticSize ('(a, b, c, d) :: (Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d) = (Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -240,6 +261,7 @@ instance (SingI a, SingI b, SingI c, SingI d) =>
 instance (SingI a, SingI b, SingI c, SingI d, SingI e) =>
          StaticSize ('(a, b, c, d, e) :: (Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e) = (Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -251,6 +273,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f) =>
          StaticSize ('(a, b, c, d, e, f) ::
                      (Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f) = (Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -263,6 +286,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g) =>
          StaticSize ('(a, b, c, d, e, f, g) ::
                      (Nat, Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g) = (Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -278,6 +302,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                      (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g, h) =
         (Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -294,6 +319,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                      (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g, h, i) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -311,6 +337,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                      (Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g, h, i, j) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -330,6 +357,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
       where
     type Bound '(a, b, c, d, e, f, g, h, i, j, k) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -350,6 +378,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                       Nat)) where
     type Bound '(a, b, c, d, e, f, g, h, i, j, k, l) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
@@ -371,6 +400,7 @@ instance (SingI a, SingI b, SingI c, SingI d, SingI e, SingI f, SingI g,
                       Nat, Nat)) where
     type Bound '(a, b, c, d, e, f, g, h, i, j, k, l, m) =
         (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)
+    {-# INLINEABLE extent #-}
     extent _ = ((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 (fromNat (Proxy :: Proxy a) - 1,
                  fromNat (Proxy :: Proxy b) - 1,
