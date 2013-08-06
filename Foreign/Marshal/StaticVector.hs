@@ -6,7 +6,16 @@
 {-# LANGUAGE RecursiveDo #-}
 {-|
 
-X
+This module defines 'StaticVector', a simple wrapper around
+'VG.Vector' with the dimensions in the type. 'StaticVector' provides a
+'Storable' instance using the type-level dimensions. This eases
+writing FFI bindings to fixed-size native arrays.
+
+Support for interop with multi-dimensional native arrays is provided
+via the 'IxStatic' class. This results in the slightly unnatural case
+where you might need to convert 'Ix' coordinates to `VG.Vector`
+indices, but it felt like an acceptable tradeoff when interfacing with
+multi-dimensional native arrays.
 
 -}
 module Foreign.Marshal.StaticVector
@@ -33,6 +42,16 @@ import Foreign.Storable
 import Foreign.Marshal.Array
 
 
+-- | A minimal 'VG.Vector' wrapper that encodes the full dimensions of
+-- the array in the type. Intended for interfacing with
+-- (possibly-)multidimensional arrays of fixed size in native code.
+--
+-- If this is used with multidimensional arrays, it will be up to
+-- users to deal with converting 'Ix' coordinates to internal
+-- 'VG.Vector' indices.
+--
+-- The constructor is not exported to prevent creating a
+-- 'StaticVector' with a size that doesn't match its dimensions.
 newtype StaticVector backing dimensions (elements :: *) =
     StaticVector {
         -- | Returns the backing value of this 'StaticVector'.
