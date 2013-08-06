@@ -15,6 +15,7 @@ import Control.Monad
 import Data.Functor ((<$>))
 
 import Data.Ix
+import Data.Ix.Static
 
 import qualified Data.Vector.Generic         as VG
 import qualified Data.Vector.Generic.Mutable as VGM
@@ -24,7 +25,6 @@ import Data.Tagged
 import Foreign.Ptr
 import Foreign.Storable
 import Foreign.Marshal.Array
-import Foreign.Marshal.StaticSize
 
 
 newtype StaticVector backing dimensions (elements :: *) =
@@ -37,20 +37,19 @@ newtype StaticVector backing dimensions (elements :: *) =
 instance (VG.Vector b e, Show e) => Show (StaticVector b d e) where
     show = ("fromList " ++) . show . VG.toList . toVector
 
-
 -- | Get the compile-time bounds from a 'StaticVector'. Does not examine its
 -- argument.
 {-# INLINEABLE staticBounds #-}
-staticBounds :: forall b d e. StaticSize d =>
+staticBounds :: forall b d e. IxStatic d =>
                 StaticVector b d e -> (Bound d, Bound d)
-staticBounds _ = untag (extent :: Tagged d (Bound d, Bound d))
+staticBounds _ = untag (taggedBounds :: Tagged d (Bound d, Bound d))
 
 {-# INLINEABLE staticSize #-}
-staticSize :: StaticSize d => StaticVector b d e -> Int
+staticSize :: IxStatic d => StaticVector b d e -> Int
 staticSize = rangeSize . staticBounds
 
 {-# INLINEABLE fromList #-}
-fromList :: (VG.Vector b e, StaticSize d) => [e] -> StaticVector b d e
+fromList :: (VG.Vector b e, IxStatic d) => [e] -> StaticVector b d e
 fromList els | len == size = sv
              | otherwise =
                  error $ "wrong size list provided to fromList; expected " ++
@@ -60,7 +59,7 @@ fromList els | len == size = sv
     size = staticSize sv
     sv = StaticVector $ VG.fromListN size els
 
-instance (StaticSize d, Storable e, VG.Vector b e) =>
+instance (IxStatic d, Storable e, VG.Vector b e) =>
          Storable (StaticVector b d e) where
     {-# INLINEABLE sizeOf #-}
     sizeOf a = sizeOf (undefined :: e) * rangeSize (staticBounds a)

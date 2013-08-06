@@ -50,12 +50,13 @@ import Data.Array (Array)
 import Data.Array.Base
 import Data.Array.IO hiding (unsafeFreeze)
 
+import Data.Ix.Static
+
 import Data.Tagged
 
 import Foreign.Ptr
 import Foreign.Storable
 import Foreign.Marshal.Array
-import Foreign.Marshal.StaticSize
 
 
 -- | A minimal array wrapper that encodes the full dimensions of the
@@ -71,28 +72,28 @@ newtype StaticArray backing dimensions (elements :: *) =
         }
     deriving Eq
 
-instance (IArray b e, StaticSize d, Show e) => Show (StaticArray b d e) where
+instance (IArray b e, IxStatic d, Show e) => Show (StaticArray b d e) where
     show = ("listStaticArray " ++) . show . elems . toArray
 
 -- | Get the compile-time bounds from a 'StaticArray'. Does not examine its
 -- argument.
 {-# INLINEABLE staticBounds #-}
-staticBounds :: forall b d e. StaticSize d =>
+staticBounds :: forall b d e. IxStatic d =>
                 StaticArray b d e -> (Bound d, Bound d)
-staticBounds _ = untag (extent :: Tagged d (Bound d, Bound d))
+staticBounds _ = untag (taggedBounds :: Tagged d (Bound d, Bound d))
 
 -- | Create a new 'StaticArray' from a list of indices and
 -- elements. This has all the semantic caveats of 'array', except that
--- the bounds are as good as those provided by the 'StaticSize'
+-- the bounds are as good as those provided by the 'IxStatic'
 -- instance.
 {-# INLINEABLE staticArray #-}
-staticArray :: (IArray b e, StaticSize d) => [(Bound d, e)] -> StaticArray b d e
+staticArray :: (IArray b e, IxStatic d) => [(Bound d, e)] -> StaticArray b d e
 staticArray ls = let a = StaticArray $ array (staticBounds a) ls in a
 
 -- | Create a new 'StaticArray' from a list of elements in index
 -- order. Implemented in terms of 'listArray', with the same caveats.
 {-# INLINEABLE listStaticArray #-}
-listStaticArray :: (StaticSize d, IArray b e) => [e] -> StaticArray b d e
+listStaticArray :: (IxStatic d, IArray b e) => [e] -> StaticArray b d e
 listStaticArray ls = let a = StaticArray $ listArray (staticBounds a) ls in a
 
 
@@ -114,7 +115,7 @@ listStaticArray ls = let a = StaticArray $ listArray (staticBounds a) ls in a
 -- | Get the size, in bytes, of the native representation of this
 -- 'StaticArray'.
 {-# INLINEABLE sizeOf' #-}
-sizeOf' :: forall b d e. (StaticSize d, Storable e) =>
+sizeOf' :: forall b d e. (IxStatic d, Storable e) =>
            StaticArray b d e -> Int
 sizeOf' a = sizeOf (undefined :: e) * rangeSize (staticBounds a)
 
@@ -127,7 +128,7 @@ alignment' _ = alignment (undefined :: e)
 -- | Write the contents of this 'StaticArray' to the given location in
 -- memory.
 {-# INLINEABLE poke' #-}
-poke' :: forall b d e. (StaticSize d, IArray b e, Storable e) =>
+poke' :: forall b d e. (IxStatic d, IArray b e, Storable e) =>
          Ptr (StaticArray b d e) -> StaticArray b d e -> IO ()
 poke' dst' (StaticArray a) = do
     let upper = rangeSize (bounds a) - 1
@@ -140,7 +141,7 @@ poke' dst' (StaticArray a) = do
 -- function. Non-copying implementations of 'unsafeFreeze' are safe as
 -- this argument, and preferred.
 {-# INLINEABLE peek' #-}
-peek' :: forall b d e m. (StaticSize d, Storable e, IArray b e,
+peek' :: forall b d e m. (IxStatic d, Storable e, IArray b e,
                           MArray m e IO) =>
          (m (Bound d) e -> IO (b (Bound d) e)) ->
          Ptr (StaticArray b d e) ->
@@ -157,7 +158,7 @@ peek' freeze' src' = do
         arr <- StaticArray <$> freeze' m
     return arr
 
-instance (StaticSize d, Storable e, IArray UArray e, MArray IOUArray e IO) =>
+instance (IxStatic d, Storable e, IArray UArray e, MArray IOUArray e IO) =>
          Storable (StaticArray UArray d e) where
     {-# INLINEABLE sizeOf#-}
     sizeOf = sizeOf'
@@ -169,7 +170,7 @@ instance (StaticSize d, Storable e, IArray UArray e, MArray IOUArray e IO) =>
     peek = peek' (unsafeFreeze :: IOUArray (Bound d) e ->
                                   IO (UArray (Bound d) e))
 
-instance (StaticSize d, Storable e) => Storable (StaticArray Array d e) where
+instance (IxStatic d, Storable e) => Storable (StaticArray Array d e) where
     {-# INLINEABLE sizeOf #-}
     sizeOf = sizeOf'
     {-# INLINEABLE alignment #-}
