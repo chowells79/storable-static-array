@@ -9,7 +9,13 @@
 X
 
 -}
-module Foreign.Marshal.StaticVector where
+module Foreign.Marshal.StaticVector
+       ( StaticVector
+       , toVector
+       , staticBounds
+       , staticSize
+       , fromList
+       ) where
 
 import Control.Monad
 import Data.Functor ((<$>))
@@ -29,7 +35,7 @@ import Foreign.Marshal.Array
 
 newtype StaticVector backing dimensions (elements :: *) =
     StaticVector {
-        -- | Returns the backing of this 'StaticVector'.
+        -- | Returns the backing value of this 'StaticVector'.
         toVector :: backing elements
         }
     deriving (Eq)
@@ -37,27 +43,31 @@ newtype StaticVector backing dimensions (elements :: *) =
 instance (VG.Vector b e, Show e) => Show (StaticVector b d e) where
     show = ("fromList " ++) . show . VG.toList . toVector
 
--- | Get the compile-time bounds from a 'StaticVector'. Does not examine its
--- argument.
+-- | Get the compile-time bounds from a 'StaticVector'. Does not
+-- examine its argument.
 {-# INLINEABLE staticBounds #-}
 staticBounds :: forall b d e. IxStatic d =>
-                StaticVector b d e -> (Bound d, Bound d)
-staticBounds _ = untag (taggedBounds :: Tagged d (Bound d, Bound d))
+                StaticVector b d e -> (Index d, Index d)
+staticBounds _ = untag (taggedBounds :: Tagged d (Index d, Index d))
 
+-- | Get the compile-time size from a 'StaticVector'. Does not examine
+-- its argument.
 {-# INLINEABLE staticSize #-}
 staticSize :: IxStatic d => StaticVector b d e -> Int
 staticSize = rangeSize . staticBounds
 
+-- | Create a new 'StaticVector' with the contents of the list. If the
+-- list passed in contains too many elements, the result will be
+-- truncated. If it contains too few elements, they will be cycled to
+-- pad out the remaining space. If it contains 0 elements, this will
+-- result in an error.
 {-# INLINEABLE fromList #-}
 fromList :: (VG.Vector b e, IxStatic d) => [e] -> StaticVector b d e
-fromList els | len == size = sv
-             | otherwise =
-                 error $ "wrong size list provided to fromList; expected " ++
-                 show size ++ ", got " ++ show len
+fromList els | null els = error "empty input to fromList"
+             | otherwise = sv
   where
-    len = length els
     size = staticSize sv
-    sv = StaticVector $ VG.fromListN size els
+    sv = StaticVector . VG.fromListN size . cycle $ els
 
 instance (IxStatic d, Storable e, VG.Vector b e) =>
          Storable (StaticVector b d e) where

@@ -20,8 +20,8 @@ source-repository head
   location:          https://github.com/chowells79/storable-static-array.git
 
 library
-  exposed-modules:   Foreign.Marshal.StaticArray,
-                     Data.Ix.Static,
+  exposed-modules:   Data.Ix.Static,
+                     Foreign.Marshal.StaticArray,
                      Foreign.Marshal.StaticVector
   build-depends:     base ==4.6.*,
                      array ==0.4.*,

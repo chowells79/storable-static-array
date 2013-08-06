@@ -6,13 +6,12 @@
 {-# LANGUAGE RecursiveDo #-}
 {-|
 
-This module defines 'StaticArray', a simple wrapper around instances
-of 'IArray' with its dimensions encoded in the type. 'StaticArray'
-provides a 'Storable' instance that uses the type-level dimensions,
-and significantly eases writing FFI bindings to fixed-size native
-arrays. For example, @'StaticArray' 'UArray' 10 CInt@ has a 'Storable'
-instance that is directly compatible with @int foo[10]@ in native
-code.
+This module defines 'StaticArray', a simple wrapper around arrays with
+their dimensions in the type. 'StaticArray' provides 'Storable'
+instances using the type-level dimensions. This eases writing FFI
+bindings to fixed-size native arrays. For example, @'StaticArray'
+'UArray' 10 CInt@ has a 'Storable' instance that is directly
+compatible with @int foo[10]@ in native code.
 
 Multidimensional native arrays are also supported. @'StaticArray'
 'UArray' \'(10,20,100) CUChar@ is compatible with @unsigned char
@@ -68,7 +67,7 @@ import Foreign.Marshal.Array
 newtype StaticArray backing dimensions (elements :: *) =
     StaticArray {
         -- | Returns the backing value of this 'StaticArray'.
-        toArray :: backing (Bound dimensions) elements
+        toArray :: backing (Index dimensions) elements
         }
     deriving Eq
 
@@ -79,15 +78,15 @@ instance (IArray b e, IxStatic d, Show e) => Show (StaticArray b d e) where
 -- argument.
 {-# INLINEABLE staticBounds #-}
 staticBounds :: forall b d e. IxStatic d =>
-                StaticArray b d e -> (Bound d, Bound d)
-staticBounds _ = untag (taggedBounds :: Tagged d (Bound d, Bound d))
+                StaticArray b d e -> (Index d, Index d)
+staticBounds _ = untag (taggedBounds :: Tagged d (Index d, Index d))
 
 -- | Create a new 'StaticArray' from a list of indices and
 -- elements. This has all the semantic caveats of 'array', except that
 -- the bounds are as good as those provided by the 'IxStatic'
 -- instance.
 {-# INLINEABLE staticArray #-}
-staticArray :: (IArray b e, IxStatic d) => [(Bound d, e)] -> StaticArray b d e
+staticArray :: (IArray b e, IxStatic d) => [(Index d, e)] -> StaticArray b d e
 staticArray ls = let a = StaticArray $ array (staticBounds a) ls in a
 
 -- | Create a new 'StaticArray' from a list of elements in index
@@ -107,7 +106,8 @@ listStaticArray ls = let a = StaticArray $ listArray (staticBounds a) ls in a
 -- array to avoid that extra copy.
 --
 -- The following functions provide a minimum complete, correct
--- 'Storable' implementation for 'StaticArray'. The helper function
+-- 'Storable' implementation for 'StaticArray'. They can be used to
+-- add more instances of 'Storable', if required. The helper function
 -- required by 'peek'' is the part necessary for efficient
 -- implementations which prevent creation of a fully polymorphic
 -- instance.
@@ -143,7 +143,7 @@ poke' dst' (StaticArray a) = do
 {-# INLINEABLE peek' #-}
 peek' :: forall b d e m. (IxStatic d, Storable e, IArray b e,
                           MArray m e IO) =>
-         (m (Bound d) e -> IO (b (Bound d) e)) ->
+         (m (Index d) e -> IO (b (Index d) e)) ->
          Ptr (StaticArray b d e) ->
          IO (StaticArray b d e)
 peek' freeze' src' = do
@@ -167,8 +167,8 @@ instance (IxStatic d, Storable e, IArray UArray e, MArray IOUArray e IO) =>
     {-# INLINEABLE poke #-}
     poke = poke'
     {-# INLINEABLE peek #-}
-    peek = peek' (unsafeFreeze :: IOUArray (Bound d) e ->
-                                  IO (UArray (Bound d) e))
+    peek = peek' (unsafeFreeze :: IOUArray (Index d) e ->
+                                  IO (UArray (Index d) e))
 
 instance (IxStatic d, Storable e) => Storable (StaticArray Array d e) where
     {-# INLINEABLE sizeOf #-}
@@ -178,5 +178,5 @@ instance (IxStatic d, Storable e) => Storable (StaticArray Array d e) where
     {-# INLINEABLE poke #-}
     poke = poke'
     {-# INLINEABLE peek #-}
-    peek = peek' (unsafeFreeze :: IOArray (Bound d) e ->
-                                  IO (Array (Bound d) e))
+    peek = peek' (unsafeFreeze :: IOArray (Index d) e ->
+                                  IO (Array (Index d) e))
