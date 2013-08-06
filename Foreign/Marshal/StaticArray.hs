@@ -84,6 +84,7 @@ instance (IArray b e, Ix (Bound d), Show e) => Show (StaticArray b d e) where
 
 -- | Get the compile-time bounds from a 'StaticArray'. Does not examine its
 -- argument.
+{-# INLINEABLE staticBounds #-}
 staticBounds :: forall b d e. StaticSize d =>
                 StaticArray b d e -> (Bound d, Bound d)
 staticBounds _ = untag (extent :: Tagged d (Bound d, Bound d))
