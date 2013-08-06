@@ -73,7 +73,7 @@ import           Foreign.Ptr           (Ptr, castPtr)
 -- array in the type. Intended for interfacing with
 -- (possibly-)multidimensional arrays of fixed size in native code.
 --
--- The constructor is not exported to prevent creating a StaticArray
+-- The constructor is not exported to prevent creating a 'StaticArray'
 -- with a size that doesn't match its dimensions.
 newtype StaticArray backing dimensions (elements :: *) =
     StaticArray {
