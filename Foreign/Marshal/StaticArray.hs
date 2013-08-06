@@ -79,11 +79,7 @@ newtype StaticArray backing dimensions (elements :: *) =
         }
     deriving Eq
 
-instance (Ix (Bound d), Show e) => Show (StaticArray Array d e) where
-    show = ("listStaticArray " ++) . show . elems . toArray
-
-instance (IArray UArray e, Ix (Bound d), Show e) =>
-         Show (StaticArray UArray d e) where
+instance (IArray b e, Ix (Bound d), Show e) => Show (StaticArray b d e) where
     show = ("listStaticArray " ++) . show . elems . toArray
 
 -- | Get the compile-time bounds from a 'StaticArray'. Does not examine its
