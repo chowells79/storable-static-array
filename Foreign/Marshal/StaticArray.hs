@@ -50,23 +50,20 @@ module Foreign.Marshal.StaticArray
        , StaticSize(..)
        ) where
 
-import           GHC.TypeLits
+import GHC.TypeLits
 
+import Control.Monad
 
-import qualified Data.Array            as A (Array)
-import qualified Data.Array.Base       as A
-import qualified Data.Array.IO         as A hiding (unsafeFreeze)
-import           Data.Ix
+import Data.Array            (Array)
+import Data.Array.Base
+import Data.Array.IO  hiding (unsafeFreeze)
+import Data.Functor          ((<$>))
+import Data.Proxy
+import Data.Tagged
 
-import           Control.Monad
-import           Data.Functor
-
-import           Data.Proxy
-import           Data.Tagged
-
-import           Foreign.Storable      (Storable(..))
-import           Foreign.Marshal.Array (advancePtr)
-import           Foreign.Ptr           (Ptr, castPtr)
+import Foreign.Storable      (Storable(..))
+import Foreign.Marshal.Array (advancePtr)
+import Foreign.Ptr           (Ptr, castPtr)
 
 
 -- | A minimal array wrapper that encodes the full dimensions of the
@@ -82,12 +79,12 @@ newtype StaticArray backing dimensions (elements :: *) =
         }
     deriving Eq
 
-instance (Ix (Bound d), Show e) => Show (StaticArray A.Array d e) where
-    show = ("listStaticArray " ++) . show . A.elems . toArray
+instance (Ix (Bound d), Show e) => Show (StaticArray Array d e) where
+    show = ("listStaticArray " ++) . show . elems . toArray
 
-instance (A.IArray A.UArray e, Ix (Bound d), Show e) =>
-         Show (StaticArray A.UArray d e) where
-    show = ("listStaticArray " ++) . show . A.elems . toArray
+instance (IArray UArray e, Ix (Bound d), Show e) =>
+         Show (StaticArray UArray d e) where
+    show = ("listStaticArray " ++) . show . elems . toArray
 
 -- | Get the compile-time bounds from a 'StaticArray'. Does not examine its
 -- argument.
@@ -101,16 +98,16 @@ staticBounds _ = untag (extent :: Tagged d (Bound d, Bound d))
 -- the bounds are as good as those provided by the 'StaticSize'
 -- instance.
 {-# INLINEABLE staticArray #-}
-staticArray :: (Ix (Bound d), A.IArray b e, StaticSize d) =>
+staticArray :: (Ix (Bound d), IArray b e, StaticSize d) =>
                [(Bound d, e)] -> StaticArray b d e
-staticArray ls = let a = StaticArray $ A.array (staticBounds a) ls in a
+staticArray ls = let a = StaticArray $ array (staticBounds a) ls in a
 
 -- | Create a new 'StaticArray' from a list of elements in index
 -- order. Implemented in terms of 'listArray'.
 {-# INLINEABLE listStaticArray #-}
-listStaticArray :: (StaticSize d, Ix (Bound d), A.IArray b e) =>
+listStaticArray :: (StaticSize d, Ix (Bound d), IArray b e) =>
                    [e] -> StaticArray b d e
-listStaticArray ls = let a = StaticArray $ A.listArray (staticBounds a) ls in a
+listStaticArray ls = let a = StaticArray $ listArray (staticBounds a) ls in a
 
 
 ------------------------------------------------------------------------
@@ -144,14 +141,14 @@ alignment' _ = alignment (undefined :: e)
 -- | Write the contents of this 'StaticArray' to the given location in
 -- memory.
 {-# INLINEABLE poke' #-}
-poke' :: forall b d e. (Ix (Bound d), A.IArray b e, Storable e) =>
+poke' :: forall b d e. (Ix (Bound d), IArray b e, Storable e) =>
          Ptr (StaticArray b d e) -> StaticArray b d e -> IO ()
 poke' dst' arr = do
         let a = toArray arr
-            b = A.bounds a
+            b = bounds a
             dst = castPtr dst'
         forM_ [0 .. rangeSize b - 1] $ \i ->
-            poke (advancePtr dst i) $ A.unsafeAt a i
+            poke (advancePtr dst i) $ unsafeAt a i
 
 -- | Create a new 'StaticArray' from the contents of the given
 -- location in memory. Uses a temporary mutable array to build up the
@@ -160,25 +157,25 @@ poke' dst' arr = do
 -- are safe as this argument, and preferred.
 {-# INLINEABLE peek' #-}
 peek' :: forall b d e m . (StaticSize d, Ix (Bound d), Storable e,
-                           A.IArray b e, A.MArray m e IO) =>
+                           IArray b e, MArray m e IO) =>
          (m (Bound d) e -> IO (b (Bound d) e)) ->
          Ptr (StaticArray b d e) ->
          IO (StaticArray b d e)
 peek' freeze' src' = do
     rec let b = staticBounds arr
-        m <- A.newArray_ b
+        m <- newArray_ b
 
         let src = castPtr src'
         forM_ [0 .. rangeSize b - 1] $ \i -> do
             x <- peek $ advancePtr src i
-            A.unsafeWrite m i x
+            unsafeWrite m i x
 
         arr <- StaticArray <$> freeze' m
     return arr
 
 instance (StaticSize d, Ix (Bound d), Storable e,
-          A.IArray A.UArray e, A.MArray A.IOUArray e IO) =>
-         Storable (StaticArray A.UArray d e) where
+          IArray UArray e, MArray IOUArray e IO) =>
+         Storable (StaticArray UArray d e) where
     {-# INLINEABLE sizeOf#-}
     sizeOf = sizeOf'
     {-# INLINEABLE alignment #-}
@@ -186,11 +183,11 @@ instance (StaticSize d, Ix (Bound d), Storable e,
     {-# INLINEABLE poke #-}
     poke = poke'
     {-# INLINEABLE peek #-}
-    peek = peek' (A.unsafeFreeze :: A.IOUArray (Bound d) e ->
-                                    IO (A.UArray (Bound d) e))
+    peek = peek' (unsafeFreeze :: IOUArray (Bound d) e ->
+                                  IO (UArray (Bound d) e))
 
 instance (StaticSize d, Ix (Bound d), Storable e) =>
-         Storable (StaticArray A.Array d e) where
+         Storable (StaticArray Array d e) where
     {-# INLINEABLE sizeOf #-}
     sizeOf = sizeOf'
     {-# INLINEABLE alignment #-}
@@ -198,8 +195,8 @@ instance (StaticSize d, Ix (Bound d), Storable e) =>
     {-# INLINEABLE poke #-}
     poke = poke'
     {-# INLINEABLE peek #-}
-    peek = peek' (A.unsafeFreeze :: A.IOArray (Bound d) e ->
-                                    IO (A.Array (Bound d) e))
+    peek = peek' (unsafeFreeze :: IOArray (Bound d) e ->
+                                  IO (Array (Bound d) e))
 
 
 ------------------------------------------------------------------------
