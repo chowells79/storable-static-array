@@ -74,7 +74,7 @@ import Foreign.Ptr           (Ptr, castPtr)
 -- with a size that doesn't match its dimensions.
 newtype StaticArray backing dimensions (elements :: *) =
     StaticArray {
-        -- | Returns the backing 'Array' of this 'StaticArray'.
+        -- | Returns the backing value of this 'StaticArray'.
         toArray :: backing (Bound dimensions) elements
         }
     deriving Eq
