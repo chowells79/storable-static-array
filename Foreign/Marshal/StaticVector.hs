@@ -35,7 +35,7 @@ import Data.Ix.Static
 import qualified Data.Vector.Generic         as VG
 import qualified Data.Vector.Generic.Mutable as VGM
 
-import Data.Tagged
+import Data.Proxy
 
 import Foreign.Ptr
 import Foreign.Storable
@@ -67,7 +67,7 @@ instance (VG.Vector b e, Show e) => Show (StaticVector b d e) where
 {-# INLINEABLE staticBounds #-}
 staticBounds :: forall b d e. IxStatic d =>
                 StaticVector b d e -> (Index d, Index d)
-staticBounds _ = untag (taggedBounds :: Tagged d (Index d, Index d))
+staticBounds _ = proxy taggedBounds (Proxy :: Proxy d)
 
 -- | Get the compile-time size from a 'StaticVector'. Does not examine
 -- its argument.

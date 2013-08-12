@@ -51,7 +51,7 @@ import Data.Array.IO hiding (unsafeFreeze)
 
 import Data.Ix.Static
 
-import Data.Tagged
+import Data.Proxy
 
 import Foreign.Ptr
 import Foreign.Storable
@@ -79,7 +79,7 @@ instance (IArray b e, IxStatic d, Show e) => Show (StaticArray b d e) where
 {-# INLINEABLE staticBounds #-}
 staticBounds :: forall b d e. IxStatic d =>
                 StaticArray b d e -> (Index d, Index d)
-staticBounds _ = untag (taggedBounds :: Tagged d (Index d, Index d))
+staticBounds _ = proxy taggedBounds (Proxy :: Proxy d)
 
 -- | Create a new 'StaticArray' from a list of indices and
 -- elements. This has all the semantic caveats of 'array', except that

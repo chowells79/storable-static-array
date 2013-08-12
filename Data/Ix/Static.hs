@@ -73,9 +73,7 @@ instance (SingI n, IxStatic (n2 ': ns)) =>
     type Index (n ': n2 ': ns) = (Int, Index (n2 ': ns))
     taggedBounds = Tagged ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
-        (b0, bn) = untag (taggedBounds :: Tagged (n2 ': ns)
-                                                 (Index (n2 ': ns),
-                                                  Index (n2 ': ns)))
+        (b0, bn) = proxy taggedBounds (Proxy :: Proxy (n2 ': ns))
 
 instance SingI a => IxStatic (a :: Nat) where
     type Index a = Int
@@ -143,8 +141,7 @@ instance (SingI n, IxStatic (n2 :. ns)) =>
     type Index (n :. n2 :. ns) = (Int, Index (n2 :. ns))
     taggedBounds = Tagged ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
-        (b0, bn) = untag (taggedBounds :: Tagged (n2 :. ns)
-                                          (Index (n2 :. ns), Index (n2 :. ns)))
+        (b0, bn) = proxy taggedBounds (Proxy :: Proxy (n2 :. ns))
 
 -- | An alternative dimension type to promoted pairs, provided for
 -- syntactic compatibility with @CPP@.
