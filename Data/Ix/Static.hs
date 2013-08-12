@@ -55,7 +55,7 @@ import Data.Tagged
 fromNat :: forall (proxy :: Nat -> *) (n :: Nat). SingI n => proxy n -> Int
 fromNat _ = fromInteger $ fromSing (sing :: Sing n)
 
--- | This class connects dimension description types with 'IArray'
+-- | This class connects dimension description types with 'Ix'
 -- index types and values.
 class Ix (Index d) => IxStatic d where
     -- | The index type for this dimension description
