@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE OverlappingInstances #-}
 {-|
 
 This module defines 'StaticVector', a simple wrapper around
@@ -32,14 +33,17 @@ import Data.Functor ((<$>))
 import Data.Ix
 import Data.Ix.Static
 
-import qualified Data.Vector.Generic         as VG
-import qualified Data.Vector.Generic.Mutable as VGM
+import qualified Data.Vector.Generic          as VG
+import qualified Data.Vector.Generic.Mutable  as VGM
+import qualified Data.Vector.Storable         as VS
+import qualified Data.Vector.Storable.Mutable as VSM
 
 import Data.Proxy
 
 import Foreign.Ptr
 import Foreign.Storable
 import Foreign.Marshal.Array
+import Foreign.Marshal.Utils
 
 
 -- | A minimal 'VG.Vector' wrapper that encodes the full dimensions of
@@ -91,7 +95,7 @@ fromList els | null els = error "empty input to fromList"
 instance (IxStatic d, Storable e, VG.Vector b e) =>
          Storable (StaticVector b d e) where
     {-# INLINEABLE sizeOf #-}
-    sizeOf a = sizeOf (undefined :: e) * rangeSize (staticBounds a)
+    sizeOf a = sizeOf (undefined :: e) * staticSize a
     {-# INLINEABLE alignment #-}
     alignment _ = alignment (undefined :: e)
     {-# INLINEABLE poke #-}
@@ -109,5 +113,22 @@ instance (IxStatic d, Storable e, VG.Vector b e) =>
                 x <- peek $ advancePtr src i
                 VGM.unsafeWrite v i x
 
+            sv <- StaticVector <$> VG.unsafeFreeze v
+        return sv
+
+instance (IxStatic d, Storable e) =>
+         Storable (StaticVector VS.Vector d e) where
+    {-# INLINEABLE sizeOf #-}
+    sizeOf a = sizeOf (undefined :: e) * staticSize a
+    {-# INLINEABLE alignment #-}
+    alignment _ = alignment (undefined :: e)
+    {-# INLINEABLE poke #-}
+    poke dst sv@(StaticVector v) = do
+        VS.unsafeWith v $ \src -> copyBytes dst (castPtr src) $ sizeOf sv
+    {-# INLINEABLE peek #-}
+    peek src = do
+        rec let size = staticSize sv
+            v <- VSM.unsafeNew size
+            VSM.unsafeWith v $ \dst -> copyBytes (castPtr dst) src $ sizeOf sv
             sv <- StaticVector <$> VG.unsafeFreeze v
         return sv
