@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE OverlappingInstances #-}
 {-|
 
 This module defines 'StaticArray', a simple wrapper around arrays with
@@ -34,18 +35,11 @@ module Foreign.Marshal.StaticArray
        , staticBounds
        , staticArray
        , listStaticArray
-         -- * Adding new Storable instances
-         -- $NewStorable
-       , sizeOf'
-       , alignment'
-       , poke'
-       , peek'
        ) where
 
 import Control.Monad
 import Data.Functor ((<$>))
 
-import Data.Array (Array)
 import Data.Array.Base
 import Data.Array.IO hiding (unsafeFreeze)
 
@@ -95,88 +89,50 @@ staticArray ls = let a = StaticArray $ array (staticBounds a) ls in a
 listStaticArray :: (IxStatic d, IArray b e) => [e] -> StaticArray b d e
 listStaticArray ls = let a = StaticArray $ listArray (staticBounds a) ls in a
 
+instance (IxStatic d, Storable e, IArray b e) =>
+         Storable (StaticArray b d e) where
+    {-# INLINEABLE sizeOf #-}
+    sizeOf a = sizeOf (undefined :: e) * rangeSize (staticBounds a)
+    {-# INLINEABLE alignment #-}
+    alignment _ = alignment (undefined :: e)
+    {-# INLINEABLE poke #-}
+    poke dst' (StaticArray a) = do
+        let upper = rangeSize (bounds a) - 1
+            dst = castPtr dst'
+        forM_ [0..upper] $ \i -> poke (advancePtr dst i) $ unsafeAt a i
+    {-# INLINEABLE peek #-}
+    peek src' = do
+        rec let b = staticBounds arr
+            m <- newArray_ b :: IO (IOArray (Index d) e)
 
-------------------------------------------------------------------------
--- $NewStorable
---
--- This module only has 'Storable' instances for 'UArray' and 'Array'
--- as backing types. This is the result of ensuring that 'peek' is not
--- implemented with an additional copy. The mutable temporary array
--- needs to have a representation compatible with that of the result
--- array to avoid that extra copy.
---
--- The following functions provide a minimum complete, correct
--- 'Storable' implementation for 'StaticArray'. They can be used to
--- add more instances of 'Storable', if required. The helper function
--- required by 'peek'' is the part necessary for efficient
--- implementations which prevent creation of a fully polymorphic
--- instance.
+            let src = castPtr src'
+            forM_ [0 .. rangeSize b - 1] $ \i -> do
+                x <- peek $ advancePtr src i
+                unsafeWrite m i x
 
--- | Get the size, in bytes, of the native representation of this
--- 'StaticArray'.
-{-# INLINEABLE sizeOf' #-}
-sizeOf' :: forall b d e. (IxStatic d, Storable e) =>
-           StaticArray b d e -> Int
-sizeOf' a = sizeOf (undefined :: e) * rangeSize (staticBounds a)
-
--- | Get the alignment, in bytes, of the native representation of this
--- 'StaticArray'
-{-# INLINEABLE alignment' #-}
-alignment' :: forall b d e. Storable e => StaticArray b d e -> Int
-alignment' _ = alignment (undefined :: e)
-
--- | Write the contents of this 'StaticArray' to the given location in
--- memory.
-{-# INLINEABLE poke' #-}
-poke' :: forall b d e. (IxStatic d, IArray b e, Storable e) =>
-         Ptr (StaticArray b d e) -> StaticArray b d e -> IO ()
-poke' dst' (StaticArray a) = do
-    let upper = rangeSize (bounds a) - 1
-        dst = castPtr dst'
-    forM_ [0..upper] $ \i -> poke (advancePtr dst i) $ unsafeAt a i
-
--- | Create a new 'StaticArray' from the contents of the given
--- location in memory. Uses a temporary mutable array to build up the
--- result, then freezes it. The first argument is the freezing
--- function. Non-copying implementations of 'unsafeFreeze' are safe as
--- this argument, and preferred.
-{-# INLINEABLE peek' #-}
-peek' :: forall b d e m. (IxStatic d, Storable e, IArray b e,
-                          MArray m e IO) =>
-         (m (Index d) e -> IO (b (Index d) e)) ->
-         Ptr (StaticArray b d e) ->
-         IO (StaticArray b d e)
-peek' freeze' src' = do
-    rec let b = staticBounds arr
-        m <- newArray_ b
-
-        let src = castPtr src'
-        forM_ [0 .. rangeSize b - 1] $ \i -> do
-            x <- peek $ advancePtr src i
-            unsafeWrite m i x
-
-        arr <- StaticArray <$> freeze' m
-    return arr
+            arr <- StaticArray <$> unsafeFreeze m
+        return arr
 
 instance (IxStatic d, Storable e, IArray UArray e, MArray IOUArray e IO) =>
          Storable (StaticArray UArray d e) where
-    {-# INLINEABLE sizeOf#-}
-    sizeOf = sizeOf'
-    {-# INLINEABLE alignment #-}
-    alignment = alignment'
-    {-# INLINEABLE poke #-}
-    poke = poke'
-    {-# INLINEABLE peek #-}
-    peek = peek' (unsafeFreeze :: IOUArray (Index d) e ->
-                                  IO (UArray (Index d) e))
-
-instance (IxStatic d, Storable e) => Storable (StaticArray Array d e) where
     {-# INLINEABLE sizeOf #-}
-    sizeOf = sizeOf'
+    sizeOf a = sizeOf (undefined :: e) * rangeSize (staticBounds a)
     {-# INLINEABLE alignment #-}
-    alignment = alignment'
+    alignment _ = alignment (undefined :: e)
     {-# INLINEABLE poke #-}
-    poke = poke'
+    poke dst' (StaticArray a) = do
+        let upper = rangeSize (bounds a) - 1
+            dst = castPtr dst'
+        forM_ [0..upper] $ \i -> poke (advancePtr dst i) $ unsafeAt a i
     {-# INLINEABLE peek #-}
-    peek = peek' (unsafeFreeze :: IOArray (Index d) e ->
-                                  IO (Array (Index d) e))
+    peek src' = do
+        rec let b = staticBounds arr
+            m <- newArray_ b :: IO (IOUArray (Index d) e)
+
+            let src = castPtr src'
+            forM_ [0 .. rangeSize b - 1] $ \i -> do
+                x <- peek $ advancePtr src i
+                unsafeWrite m i x
+
+            arr <- StaticArray <$> unsafeFreeze m
+        return arr
