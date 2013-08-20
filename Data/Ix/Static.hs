@@ -64,6 +64,10 @@ class Ix (Index d) => IxStatic d where
     -- dimensionality, tagged with the dimensionality.
     taggedBounds :: Tagged d (Index d, Index d)
 
+instance SingI a => IxStatic (a :: Nat) where
+    type Index a = Int
+    taggedBounds = Tagged (0, fromNat (Proxy :: Proxy a) - 1)
+
 instance SingI n => IxStatic ('[n] :: [Nat]) where
     type Index ('[n]) = Int
     taggedBounds = Tagged (0, fromNat (Proxy :: Proxy n) - 1)
@@ -74,10 +78,6 @@ instance (SingI n, IxStatic (n2 ': ns)) =>
     taggedBounds = Tagged ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
         (b0, bn) = proxy taggedBounds (Proxy :: Proxy (n2 ': ns))
-
-instance SingI a => IxStatic (a :: Nat) where
-    type Index a = Int
-    taggedBounds = Tagged (0, fromNat (Proxy :: Proxy a) - 1)
 
 instance (SingI a, SingI b) => IxStatic ('(a, b) :: (Nat, Nat)) where
     type Index '(a, b) = (Int, Int)
