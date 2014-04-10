@@ -3,3 +3,5 @@ dist
 .DS_Store
 *.hi
 *.o
+.cabal-sandbox
+cabal.sandbox.config
