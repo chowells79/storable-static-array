@@ -5,7 +5,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverlappingInstances #-}
-{-# LANGUAGE AutoDeriveTypeable #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-|
 
