@@ -5,6 +5,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE AutoDeriveTypeable #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-|
 
 This module defines 'StaticArray', a simple wrapper around arrays with
@@ -32,6 +34,7 @@ module Foreign.Marshal.StaticArray
        ( -- * Basic interface
          StaticArray
        , toArray
+       , pattern StaticArray
        , staticBounds
        , staticArray
        , listStaticArray
@@ -40,10 +43,10 @@ module Foreign.Marshal.StaticArray
 import Control.Monad
 import Data.Functor ((<$>))
 
-import Data.Array.Base
-import Data.Array.IO hiding (unsafeFreeze)
+import Data.Array.Base as A
+import Data.Array.IO
 
-import Data.Ix.Static
+import Data.Ix.Static as IS
 
 import Data.Proxy
 
@@ -55,11 +58,8 @@ import Foreign.Marshal.Array
 -- | A minimal array wrapper that encodes the full dimensions of the
 -- array in the type. Intended for interfacing with
 -- (possibly-)multidimensional arrays of fixed size in native code.
---
--- The constructor is not exported to prevent creating a 'StaticArray'
--- with a size that doesn't match its dimensions.
 newtype StaticArray backing dimensions (elements :: *) =
-    StaticArray {
+    SA {
         -- | Returns the backing value of this 'StaticArray'.
         toArray :: backing (Index dimensions) elements
         }
@@ -68,12 +68,16 @@ newtype StaticArray backing dimensions (elements :: *) =
 instance (IArray b e, IxStatic d, Show e) => Show (StaticArray b d e) where
     show = ("listStaticArray " ++) . show . elems . toArray
 
+-- | A convenience pattern for extracting the backing value of a
+-- 'StaticArray' without exposing the real constructor
+pattern StaticArray x <- SA x
+
 -- | Get the compile-time bounds from a 'StaticArray'. Does not examine its
 -- argument.
 {-# INLINEABLE staticBounds #-}
 staticBounds :: forall b d e. IxStatic d =>
                 StaticArray b d e -> (Index d, Index d)
-staticBounds _ = proxy taggedBounds (Proxy :: Proxy d)
+staticBounds _ = IS.bounds (Proxy :: Proxy d)
 
 -- | Create a new 'StaticArray' from a list of indices and
 -- elements. This has all the semantic caveats of 'array', except that
@@ -81,13 +85,13 @@ staticBounds _ = proxy taggedBounds (Proxy :: Proxy d)
 -- instance.
 {-# INLINEABLE staticArray #-}
 staticArray :: (IArray b e, IxStatic d) => [(Index d, e)] -> StaticArray b d e
-staticArray ls = let a = StaticArray $ array (staticBounds a) ls in a
+staticArray ls = let a = SA $ array (staticBounds a) ls in a
 
 -- | Create a new 'StaticArray' from a list of elements in index
 -- order. Implemented in terms of 'listArray', with the same caveats.
 {-# INLINEABLE listStaticArray #-}
 listStaticArray :: (IxStatic d, IArray b e) => [e] -> StaticArray b d e
-listStaticArray ls = let a = StaticArray $ listArray (staticBounds a) ls in a
+listStaticArray ls = let a = SA $ listArray (staticBounds a) ls in a
 
 instance (IxStatic d, Storable e, IArray b e) =>
          Storable (StaticArray b d e) where
@@ -97,7 +101,7 @@ instance (IxStatic d, Storable e, IArray b e) =>
     alignment _ = alignment (undefined :: e)
     {-# INLINEABLE poke #-}
     poke dst' (StaticArray a) = do
-        let upper = rangeSize (bounds a) - 1
+        let upper = rangeSize (A.bounds a) - 1
             dst = castPtr dst'
         forM_ [0..upper] $ \i -> poke (advancePtr dst i) $ unsafeAt a i
     {-# INLINEABLE peek #-}
@@ -110,7 +114,7 @@ instance (IxStatic d, Storable e, IArray b e) =>
                 x <- peek $ advancePtr src i
                 unsafeWrite m i x
 
-            arr <- StaticArray <$> unsafeFreeze m
+            arr <- SA <$> unsafeFreeze m
         return arr
 
 instance (IxStatic d, Storable e, IArray UArray e, MArray IOUArray e IO) =>
@@ -121,7 +125,7 @@ instance (IxStatic d, Storable e, IArray UArray e, MArray IOUArray e IO) =>
     alignment _ = alignment (undefined :: e)
     {-# INLINEABLE poke #-}
     poke dst' (StaticArray a) = do
-        let upper = rangeSize (bounds a) - 1
+        let upper = rangeSize (A.bounds a) - 1
             dst = castPtr dst'
         forM_ [0..upper] $ \i -> poke (advancePtr dst i) $ unsafeAt a i
     {-# INLINEABLE peek #-}
@@ -134,5 +138,5 @@ instance (IxStatic d, Storable e, IArray UArray e, MArray IOUArray e IO) =>
                 x <- peek $ advancePtr src i
                 unsafeWrite m i x
 
-            arr <- StaticArray <$> unsafeFreeze m
+            arr <- SA <$> unsafeFreeze m
         return arr

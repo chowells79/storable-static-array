@@ -7,6 +7,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE AutoDeriveTypeable #-}
 {-|
 
 'IxStatic' is a class that uses type-level constraints to generate the
@@ -40,7 +41,6 @@ import GHC.TypeLits
 import Data.Ix
 
 import Data.Proxy
-import Data.Tagged
 
 -- | A conversion function for converting type-level naturals to
 -- value-level. This is being exposed to aid in the creation of
@@ -48,12 +48,12 @@ import Data.Tagged
 -- so.
 --
 -- Haddock is currently eating the important qualification that the
--- type variable @n@ must have the kind 'Nat'. The 'SingI' instance is
+-- type variable @n@ must have the kind 'Nat'. The 'KnownNat' instance is
 -- automatically fulfilled for all types of kind 'Nat'. Its explicit
 -- presence in the signature is an artifact of how GHC implements
 -- dictionary passing and type erasure.
-fromNat :: forall (proxy :: Nat -> *) (n :: Nat). SingI n => proxy n -> Int
-fromNat _ = fromInteger $ fromSing (sing :: Sing n)
+fromNat :: KnownNat n => proxy n -> Int
+fromNat = fromInteger . natVal
 
 -- | This class connects dimension description types with 'Ix'
 -- index types and values.
@@ -62,55 +62,55 @@ class Ix (Index d) => IxStatic d where
     type Index d :: *
     -- | The concrete bounds for an array of this
     -- dimensionality, tagged with the dimensionality.
-    taggedBounds :: Tagged d (Index d, Index d)
+    bounds :: proxy d -> (Index d, Index d)
 
-instance SingI a => IxStatic (a :: Nat) where
+instance KnownNat a => IxStatic (a :: Nat) where
     type Index a = Int
-    taggedBounds = Tagged (0, fromNat (Proxy :: Proxy a) - 1)
+    bounds _ = (0, fromNat (Proxy :: Proxy a) - 1)
 
-instance SingI n => IxStatic ('[n] :: [Nat]) where
+instance KnownNat n => IxStatic ('[n] :: [Nat]) where
     type Index ('[n]) = Int
-    taggedBounds = Tagged (0, fromNat (Proxy :: Proxy n) - 1)
+    bounds _ = (0, fromNat (Proxy :: Proxy n) - 1)
 
-instance (SingI n, IxStatic (n2 ': ns)) =>
+instance (KnownNat n, IxStatic (n2 ': ns)) =>
           IxStatic ((n ': n2 ': ns) :: [Nat]) where
     type Index (n ': n2 ': ns) = (Int, Index (n2 ': ns))
-    taggedBounds = Tagged ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
+    bounds _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
-        (b0, bn) = proxy taggedBounds (Proxy :: Proxy (n2 ': ns))
+        (b0, bn) = bounds (Proxy :: Proxy (n2 ': ns))
 
-instance (SingI a, SingI b) => IxStatic ('(a, b) :: (Nat, Nat)) where
+instance (KnownNat a, KnownNat b) => IxStatic ('(a, b) :: (Nat, Nat)) where
     type Index '(a, b) = (Int, Int)
-    taggedBounds = Tagged ((0, 0),
-                           (fromNat (Proxy :: Proxy a) - 1,
-                           fromNat (Proxy :: Proxy b) - 1))
+    bounds _ = ((0, 0),
+                (fromNat (Proxy :: Proxy a) - 1,
+                 fromNat (Proxy :: Proxy b) - 1))
 
-instance (SingI a, SingI b, SingI c) =>
+instance (KnownNat a, KnownNat b, KnownNat c) =>
          IxStatic ('(a, b, c) :: (Nat, Nat, Nat)) where
     type Index '(a, b, c) = (Int, Int, Int)
-    taggedBounds = Tagged ((0, 0, 0),
-                           (fromNat (Proxy :: Proxy a) - 1,
-                            fromNat (Proxy :: Proxy b) - 1,
-                            fromNat (Proxy :: Proxy c) - 1))
+    bounds _ = ((0, 0, 0),
+                (fromNat (Proxy :: Proxy a) - 1,
+                 fromNat (Proxy :: Proxy b) - 1,
+                 fromNat (Proxy :: Proxy c) - 1))
 
-instance (SingI a, SingI b, SingI c, SingI d) =>
+instance (KnownNat a, KnownNat b, KnownNat c, KnownNat d) =>
          IxStatic ('(a, b, c, d) :: (Nat, Nat, Nat, Nat)) where
     type Index '(a, b, c, d) = (Int, Int, Int, Int)
-    taggedBounds = Tagged ((0, 0, 0, 0),
-                           (fromNat (Proxy :: Proxy a) - 1,
-                            fromNat (Proxy :: Proxy b) - 1,
-                            fromNat (Proxy :: Proxy c) - 1,
-                            fromNat (Proxy :: Proxy d) - 1))
+    bounds _ = ((0, 0, 0, 0),
+                (fromNat (Proxy :: Proxy a) - 1,
+                 fromNat (Proxy :: Proxy b) - 1,
+                 fromNat (Proxy :: Proxy c) - 1,
+                 fromNat (Proxy :: Proxy d) - 1))
 
-instance (SingI a, SingI b, SingI c, SingI d, SingI e) =>
+instance (KnownNat a, KnownNat b, KnownNat c, KnownNat d, KnownNat e) =>
          IxStatic ('(a, b, c, d, e) :: (Nat, Nat, Nat, Nat, Nat)) where
     type Index '(a, b, c, d, e) = (Int, Int, Int, Int, Int)
-    taggedBounds = Tagged ((0, 0, 0, 0, 0),
-                           (fromNat (Proxy :: Proxy a) - 1,
-                            fromNat (Proxy :: Proxy b) - 1,
-                            fromNat (Proxy :: Proxy c) - 1,
-                            fromNat (Proxy :: Proxy d) - 1,
-                            fromNat (Proxy :: Proxy e) - 1))
+    bounds _ = ((0, 0, 0, 0, 0),
+                (fromNat (Proxy :: Proxy a) - 1,
+                 fromNat (Proxy :: Proxy b) - 1,
+                 fromNat (Proxy :: Proxy c) - 1,
+                 fromNat (Proxy :: Proxy d) - 1,
+                 fromNat (Proxy :: Proxy e) - 1))
 
 -- | ':.' is provided as an alternative means of constructing a
 -- type-level list of dimensions. @DataKinds@-promoted lists are also
@@ -132,56 +132,57 @@ infixr 3 :.
 -- | 'Nil' is the terminator for type-level lists created with ':.'
 data Nil
 
-instance SingI n => IxStatic ((n :: Nat) :. Nil) where
+instance KnownNat n => IxStatic ((n :: Nat) :. Nil) where
     type Index (n :. Nil) = Int
-    taggedBounds = Tagged (0, fromNat (Proxy :: Proxy n) - 1)
+    bounds _ = (0, fromNat (Proxy :: Proxy n) - 1)
 
-instance (SingI n, IxStatic (n2 :. ns)) =>
+instance (KnownNat n, IxStatic (n2 :. ns)) =>
           IxStatic ((n :: Nat) :. n2 :. ns) where
     type Index (n :. n2 :. ns) = (Int, Index (n2 :. ns))
-    taggedBounds = Tagged ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
+    bounds _ = ((0, b0), (fromNat (Proxy :: Proxy n) - 1, bn))
       where
-        (b0, bn) = proxy taggedBounds (Proxy :: Proxy (n2 :. ns))
+        (b0, bn) = bounds (Proxy :: Proxy (n2 :. ns))
 
 -- | An alternative dimension type to promoted pairs, provided for
 -- syntactic compatibility with @CPP@.
 data D2 (a :: Nat) (b :: Nat)
-instance (SingI a, SingI b) => IxStatic (D2 a b) where
+instance (KnownNat a, KnownNat b) => IxStatic (D2 a b) where
     type Index (D2 a b) = (Int, Int)
-    taggedBounds = Tagged ((0, 0),
-                           (fromNat (Proxy :: Proxy a) - 1,
-                            fromNat (Proxy :: Proxy b) - 1))
+    bounds _ = ((0, 0),
+                (fromNat (Proxy :: Proxy a) - 1,
+                 fromNat (Proxy :: Proxy b) - 1))
 
 -- | An alternative dimension type to promoted triples, provided for
 -- syntactic compatibility with @CPP@.
 data D3 (a :: Nat) (b :: Nat) (c :: Nat)
-instance (SingI a, SingI b, SingI c) => IxStatic (D3 a b c) where
+instance (KnownNat a, KnownNat b, KnownNat c) => IxStatic (D3 a b c) where
     type Index (D3 a b c) = (Int, Int, Int)
-    taggedBounds = Tagged ((0, 0, 0),
-                           (fromNat (Proxy :: Proxy a) - 1,
-                            fromNat (Proxy :: Proxy b) - 1,
-                            fromNat (Proxy :: Proxy c) - 1))
+    bounds _ = ((0, 0, 0),
+                (fromNat (Proxy :: Proxy a) - 1,
+                 fromNat (Proxy :: Proxy b) - 1,
+                 fromNat (Proxy :: Proxy c) - 1))
 
 -- | An alternative dimension type to promoted 4-tuples, provided for
 -- syntactic compatibility with @CPP@.
 data D4 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat)
-instance (SingI a, SingI b, SingI c, SingI d) => IxStatic (D4 a b c d) where
+instance (KnownNat a, KnownNat b, KnownNat c, KnownNat d) =>
+         IxStatic (D4 a b c d) where
     type Index (D4 a b c d) = (Int, Int, Int, Int)
-    taggedBounds = Tagged ((0, 0, 0, 0),
-                           (fromNat (Proxy :: Proxy a) - 1,
-                            fromNat (Proxy :: Proxy b) - 1,
-                            fromNat (Proxy :: Proxy c) - 1,
-                            fromNat (Proxy :: Proxy d) - 1))
+    bounds _ = ((0, 0, 0, 0),
+                (fromNat (Proxy :: Proxy a) - 1,
+                 fromNat (Proxy :: Proxy b) - 1,
+                 fromNat (Proxy :: Proxy c) - 1,
+                 fromNat (Proxy :: Proxy d) - 1))
 
 -- | An alternative dimension type to promoted 5-tuples, provided for
 -- syntactic compatibility with @CPP@.
 data D5 (a :: Nat) (b :: Nat) (c :: Nat) (d :: Nat) (e :: Nat)
-instance (SingI a, SingI b, SingI c, SingI d, SingI e) =>
+instance (KnownNat a, KnownNat b, KnownNat c, KnownNat d, KnownNat e) =>
          IxStatic (D5 a b c d e) where
     type Index (D5 a b c d e) = (Int, Int, Int, Int, Int)
-    taggedBounds = Tagged ((0, 0, 0, 0, 0),
-                           (fromNat (Proxy :: Proxy a) - 1,
-                            fromNat (Proxy :: Proxy b) - 1,
-                            fromNat (Proxy :: Proxy c) - 1,
-                            fromNat (Proxy :: Proxy d) - 1,
-                            fromNat (Proxy :: Proxy e) - 1))
+    bounds _ = ((0, 0, 0, 0, 0),
+                (fromNat (Proxy :: Proxy a) - 1,
+                 fromNat (Proxy :: Proxy b) - 1,
+                 fromNat (Proxy :: Proxy c) - 1,
+                 fromNat (Proxy :: Proxy d) - 1,
+                 fromNat (Proxy :: Proxy e) - 1))

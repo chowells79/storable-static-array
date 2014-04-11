@@ -5,6 +5,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE AutoDeriveTypeable #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-|
 
 This module defines 'StaticVector', a simple wrapper around
@@ -22,6 +24,7 @@ multi-dimensional native arrays.
 module Foreign.Marshal.StaticVector
        ( StaticVector
        , toVector
+       , pattern StaticVector
        , staticBounds
        , staticSize
        , fromList
@@ -31,7 +34,7 @@ import Control.Monad
 import Data.Functor ((<$>))
 
 import Data.Ix
-import Data.Ix.Static
+import Data.Ix.Static as IS
 
 import qualified Data.Vector.Generic          as VG
 import qualified Data.Vector.Generic.Mutable  as VGM
@@ -57,7 +60,7 @@ import Foreign.Marshal.Utils
 -- The constructor is not exported to prevent creating a
 -- 'StaticVector' with a size that doesn't match its dimensions.
 newtype StaticVector backing dimensions (elements :: *) =
-    StaticVector {
+    SV {
         -- | Returns the backing value of this 'StaticVector'.
         toVector :: backing elements
         }
@@ -66,12 +69,16 @@ newtype StaticVector backing dimensions (elements :: *) =
 instance (VG.Vector b e, Show e) => Show (StaticVector b d e) where
     show = ("fromList " ++) . show . VG.toList . toVector
 
+-- | A convenience pattern for extracting the backing value of a
+-- 'StaticVector' without exposing the real constructor
+pattern StaticVector x <- SV x
+
 -- | Get the compile-time bounds from a 'StaticVector'. Does not
 -- examine its argument.
 {-# INLINEABLE staticBounds #-}
 staticBounds :: forall b d e. IxStatic d =>
                 StaticVector b d e -> (Index d, Index d)
-staticBounds _ = proxy taggedBounds (Proxy :: Proxy d)
+staticBounds _ = IS.bounds (Proxy :: Proxy d)
 
 -- | Get the compile-time size from a 'StaticVector'. Does not examine
 -- its argument.
@@ -90,7 +97,7 @@ fromList els | null els = error "empty input to fromList"
              | otherwise = sv
   where
     size = staticSize sv
-    sv = StaticVector . VG.fromListN size . cycle $ els
+    sv = SV . VG.fromListN size . cycle $ els
 
 instance (IxStatic d, Storable e, VG.Vector b e) =>
          Storable (StaticVector b d e) where
@@ -113,7 +120,7 @@ instance (IxStatic d, Storable e, VG.Vector b e) =>
                 x <- peek $ advancePtr src i
                 VGM.unsafeWrite v i x
 
-            sv <- StaticVector <$> VG.unsafeFreeze v
+            sv <- SV <$> VG.unsafeFreeze v
         return sv
 
 instance (IxStatic d, Storable e) =>
@@ -130,5 +137,5 @@ instance (IxStatic d, Storable e) =>
         rec let size = staticSize sv
             v <- VSM.unsafeNew size
             VSM.unsafeWith v $ \dst -> copyBytes (castPtr dst) src $ sizeOf sv
-            sv <- StaticVector <$> VG.unsafeFreeze v
+            sv <- SV <$> VG.unsafeFreeze v
         return sv
