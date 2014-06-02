@@ -7,6 +7,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE AutoDeriveTypeable #-}
 {-|
 
 'IxStatic' is a class that uses type-level constraints to generate the

@@ -6,6 +6,7 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-|
 
 This module defines 'StaticVector', a simple wrapper around
@@ -41,6 +42,7 @@ import qualified Data.Vector.Storable         as VS
 import qualified Data.Vector.Storable.Mutable as VSM
 
 import Data.Proxy
+import Data.Typeable
 
 import Foreign.Ptr
 import Foreign.Storable
@@ -63,7 +65,7 @@ newtype StaticVector backing dimensions (elements :: *) =
         -- | Returns the backing value of this 'StaticVector'.
         toVector :: backing elements
         }
-    deriving (Eq)
+    deriving (Eq, Typeable)
 
 instance (VG.Vector b e, Show e) => Show (StaticVector b d e) where
     show = ("fromList " ++) . show . VG.toList . toVector

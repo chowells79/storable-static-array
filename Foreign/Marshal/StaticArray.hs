@@ -6,6 +6,7 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-|
 
 This module defines 'StaticArray', a simple wrapper around arrays with
@@ -48,6 +49,7 @@ import Data.Array.IO
 import Data.Ix.Static as IS
 
 import Data.Proxy
+import Data.Typeable
 
 import Foreign.Ptr
 import Foreign.Storable
@@ -62,7 +64,7 @@ newtype StaticArray backing dimensions (elements :: *) =
         -- | Returns the backing value of this 'StaticArray'.
         toArray :: backing (Index dimensions) elements
         }
-    deriving Eq
+    deriving (Eq, Typeable)
 
 instance (IArray b e, IxStatic d, Show e) => Show (StaticArray b d e) where
     show = ("listStaticArray " ++) . show . elems . toArray
